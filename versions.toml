@@ -1,0 +1,27 @@
+# Pinned versions for the whole stack.
+# The sbt build and the Python tooling both read this file, so a version
+# is changed here and nowhere else.
+#
+# Tool versions that must live in a tool's own file are not repeated here:
+#   sbt       jvm/project/build.properties
+#   scalafmt  jvm/.scalafmt.conf
+
+[jvm]
+# Bytecode target. Spark 4 needs Java 17 or newer.
+java_release = "17"
+# Java version of the runtime images.
+java_runtime = "21"
+# Must match the Scala version Spark is built with.
+scala = "2.13.17"
+spark = "4.1.4"
+iceberg = "1.11.0"
+kafka = "4.4.0"
+scalatest = "3.2.20"
+
+[python]
+python = "3.12"
+
+[shared]
+# Used by both XGBoost4J and the Python package. Keep them identical,
+# otherwise the two sides can score the same row differently.
+xgboost = "3.4.0"
