@@ -1,0 +1,28 @@
+# Working notes, kept out of the repository
+temp-docs/
+
+# sbt and Scala tooling
+target/
+.bsp/
+.bloop/
+.metals/
+project/project/
+project/metals.sbt
+*.class
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# Editors and OS
+.idea/
+.vscode/
+.DS_Store
+
+# Local secrets and overrides
+.env
+*.agekey
