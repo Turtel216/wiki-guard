@@ -1,0 +1,51 @@
+# How WikiGuard talks to Wikimedia.
+# Only the ingestor and the enricher read this file. When Wikimedia changes
+# a limit, change the number here.
+
+wikis:
+  - enwiki
+
+# Sent on every request, including the stream connection, as
+#   WikiGuard/<version> (<repo_url>; <contact>)
+# Both values must be filled in before anything connects to Wikimedia.
+user_agent:
+  repo_url: ""
+  contact: ""
+
+stream:
+  url: https://stream.wikimedia.org/v2/stream
+  names:
+    - mediawiki.revision-create
+    - mediawiki.revision-tags-change
+  # Backoff between reconnects after repeated errors.
+  reconnect_min_seconds: 1
+  reconnect_max_seconds: 60
+
+api:
+  # Requests per minute Wikimedia allows for our client class.
+  tier_limit_per_min: 200
+  # The budget may never be set above this share of the tier limit.
+  max_budget_share: 0.5
+  budget_per_min: 60
+  burst: 10
+  max_concurrent_requests: 2
+  maxlag_seconds: 5
+
+  queue:
+    capacity: 500
+    max_age_seconds: 300
+
+  throttle:
+    # Wait this long after a 429 or 503 that has no Retry-After header.
+    default_wait_seconds: 60
+    # Share of the full budget restored per minute without a throttle.
+    restore_share_per_min: 0.1
+
+  circuit_breaker:
+    throttles_to_open: 3
+    window_minutes: 10
+    open_minutes: 30
+
+enrichment:
+  # Share of all in-scope edits enriched at random, whatever their score.
+  random_sample_share: 0.05
