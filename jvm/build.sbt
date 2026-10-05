@@ -30,6 +30,25 @@ lazy val sparkSql = "org.apache.spark" %% "spark-sql" % Versions("jvm.spark") % 
 // Must be the same version as the Python xgboost package that trains the models.
 lazy val xgboost4j = "ml.dmlc" %% "xgboost4j" % Versions("shared.xgboost")
 
+// Spark reaches into JDK internals, which newer Java versions only allow when asked.
+// spark-submit adds these flags itself; forked test JVMs need them spelled out.
+lazy val sparkJavaOptions = Seq(
+  "java.base/java.lang",
+  "java.base/java.lang.invoke",
+  "java.base/java.lang.reflect",
+  "java.base/java.io",
+  "java.base/java.net",
+  "java.base/java.nio",
+  "java.base/java.util",
+  "java.base/java.util.concurrent",
+  "java.base/java.util.concurrent.atomic",
+  "java.base/jdk.internal.ref",
+  "java.base/sun.nio.ch",
+  "java.base/sun.nio.cs",
+  "java.base/sun.security.action",
+  "java.base/sun.util.calendar"
+).map(pkg => s"--add-opens=$pkg=ALL-UNNAMED")
+
 lazy val commonSettings = Seq(
   libraryDependencies += scalatest,
   Test / fork := true
@@ -80,4 +99,26 @@ lazy val batch = (project in file("batch"))
   .settings(
     name := "wikiguard-batch",
     libraryDependencies += sparkSql
+  )
+
+// Tests that need Docker. This project is left out of the root aggregate on purpose,
+// so a plain `sbt test` never starts containers. Run it with `sbt integration/test`.
+lazy val integration = (project in file("integration"))
+  .settings(commonSettings)
+  .settings(
+    name := "wikiguard-integration",
+    publish / skip := true,
+    libraryDependencies ++= Seq(
+      "org.apache.spark" %% "spark-sql" % Versions("jvm.spark") % Test,
+      "org.apache.iceberg" %% "iceberg-spark-runtime-4.1" % Versions("jvm.iceberg") % Test,
+      "org.apache.hadoop" % "hadoop-aws" % Versions("jvm.hadoop") % Test,
+      "org.postgresql" % "postgresql" % Versions("jvm.postgres_jdbc") % Test,
+      "org.testcontainers" % "testcontainers" % Versions("jvm.testcontainers") % Test,
+      "org.testcontainers" % "testcontainers-postgresql" % Versions("jvm.testcontainers") % Test
+    ),
+    Test / javaOptions ++= sparkJavaOptions,
+    Test / envVars ++= Map(
+      "WG_SEAWEEDFS_IMAGE" -> Versions("images.seaweedfs"),
+      "WG_POSTGRES_IMAGE" -> Versions("images.postgres")
+    )
   )
