@@ -4,7 +4,7 @@ ThisBuild / scalaVersion := Versions("jvm.scala")
 
 ThisBuild / scalacOptions ++= Seq(
   "-release",
-  Versions("jvm.java_release"),
+  Versions("jvm.java"),
   "-deprecation",
   "-feature",
   "-unchecked",

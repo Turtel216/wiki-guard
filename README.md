@@ -37,7 +37,7 @@ docs/        ADRs and runbooks
 
 ## Requirements
 
-- JDK 17 or newer
+- JDK 21
 - [sbt](https://www.scala-sbt.org/)
 - [uv](https://docs.astral.sh/uv/)
 - make

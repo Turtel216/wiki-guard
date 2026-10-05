@@ -7,10 +7,8 @@
 #   scalafmt  jvm/.scalafmt.conf
 
 [jvm]
-# Bytecode target. Spark 4 needs Java 17 or newer.
-java_release = "17"
-# Java version of the runtime images.
-java_runtime = "21"
+# Bytecode target and the Java version of the runtime images.
+java = "21"
 # Must match the Scala version Spark is built with.
 scala = "2.13.17"
 spark = "4.1.4"
