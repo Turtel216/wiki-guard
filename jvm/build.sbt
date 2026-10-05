@@ -27,6 +27,9 @@ lazy val scalatest = "org.scalatest" %% "scalatest" % Versions("jvm.scalatest") 
 // Spark is provided by the runtime image and must not end up in our jars.
 lazy val sparkSql = "org.apache.spark" %% "spark-sql" % Versions("jvm.spark") % Provided
 
+// Must be the same version as the Python xgboost package that trains the models.
+lazy val xgboost4j = "ml.dmlc" %% "xgboost4j" % Versions("shared.xgboost")
+
 lazy val commonSettings = Seq(
   libraryDependencies += scalatest,
   Test / fork := true
@@ -67,7 +70,7 @@ lazy val stream = (project in file("stream"))
   .settings(commonSettings)
   .settings(
     name := "wikiguard-stream",
-    libraryDependencies += sparkSql
+    libraryDependencies ++= Seq(sparkSql, xgboost4j)
   )
 
 // Backfill, label finalization, evaluation and table maintenance.
