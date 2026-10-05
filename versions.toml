@@ -12,9 +12,13 @@ java = "21"
 # Must match the Scala version Spark is built with.
 scala = "2.13.17"
 spark = "4.1.4"
+# Must match the Hadoop version Spark is built with.
+hadoop = "3.4.2"
 iceberg = "1.11.0"
 kafka = "4.4.0"
+postgres_jdbc = "42.7.14"
 scalatest = "3.2.20"
+testcontainers = "2.0.5"
 
 [python]
 python = "3.12"
@@ -23,3 +27,8 @@ python = "3.12"
 # Used by both XGBoost4J and the Python package. Keep them identical,
 # otherwise the two sides can score the same row differently.
 xgboost = "3.4.0"
+
+[images]
+# Container images used by the integration tests.
+seaweedfs = "chrislusf/seaweedfs:4.53"
+postgres = "postgres:18.7-alpine"
