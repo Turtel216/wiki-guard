@@ -8,12 +8,16 @@ export WG_PARITY_DIR := $(CURDIR)/jvm/target/parity
 
 .PHONY: help
 help: ## List the available targets
-	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F ':.*## ' '{printf "  %-15s %s\n", $$1, $$2}'
+	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F ':.*## ' '{printf "  %-17s %s\n", $$1, $$2}'
 
 .PHONY: test
 test: parity-fixture ## Run the Scala and Python unit tests
 	$(UV) pytest
 	$(SBT) test
+
+.PHONY: integration-test
+integration-test: ## Run the tests that start containers (needs Docker)
+	$(SBT) integration/test
 
 .PHONY: parity-fixture
 parity-fixture: ## Train a tiny model in Python for the JVM parity test
@@ -21,13 +25,14 @@ parity-fixture: ## Train a tiny model in Python for the JVM parity test
 
 .PHONY: fmt
 fmt: ## Format and auto-fix Scala and Python code
-	$(SBT) scalafixAll scalafmtAll scalafmtSbt
+	$(SBT) scalafixAll integration/scalafixAll scalafmtAll integration/scalafmtAll scalafmtSbt
 	$(UV) ruff check --fix .
 	$(UV) ruff format .
 
 .PHONY: lint
 lint: ## Check formatting, lint rules and types without changing files
-	$(SBT) scalafmtCheckAll scalafmtSbtCheck "scalafixAll --check"
+	$(SBT) scalafmtCheckAll integration/scalafmtCheckAll scalafmtSbtCheck \
+		"scalafixAll --check" "integration/scalafixAll --check"
 	$(UV) ruff check .
 	$(UV) ruff format --check .
 	$(UV) mypy

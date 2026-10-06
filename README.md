@@ -25,6 +25,7 @@ jvm/         sbt multi-project, Scala 2.13
   enricher/        rate-limited Wikimedia API client
   stream/          Structured Streaming queries
   batch/           backfill, labels, evaluation, table maintenance
+  integration/     tests that start containers
 ml/          Python: dataset, training, evaluation, promotion
 sql/ddl/     Iceberg and PostgreSQL DDL
 deploy/      Kustomize bases, overlays and the Flux entry point
@@ -41,14 +42,16 @@ docs/        ADRs and runbooks
 - [sbt](https://www.scala-sbt.org/)
 - [uv](https://docs.astral.sh/uv/)
 - make
+- Docker, for the integration tests only
 
 ## Getting started
 
 ```sh
-make help   # list targets
-make test   # Scala and Python unit tests
-make lint   # formatting, lint rules and types
-make fmt    # format and auto-fix
+make help               # list targets
+make test               # Scala and Python unit tests
+make integration-test   # tests against SeaweedFS and PostgreSQL containers
+make lint               # formatting, lint rules and types
+make fmt                # format and auto-fix
 ```
 
 Versions for the whole stack are pinned in `versions.toml`.
