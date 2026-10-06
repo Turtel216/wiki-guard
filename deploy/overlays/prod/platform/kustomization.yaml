@@ -1,0 +1,8 @@
+# Credentials are not part of this overlay. They come from ../secrets.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: platform
+resources:
+  - ../../../base/kafka
+  - ../../../base/seaweedfs
+  - ../../../base/postgres

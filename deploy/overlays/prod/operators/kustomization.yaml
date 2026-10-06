@@ -1,0 +1,7 @@
+# Applied first. The platform resources need the operator's resource types
+# to exist before they can be created.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../../base/namespaces
+  - ../../../base/strimzi-operator
