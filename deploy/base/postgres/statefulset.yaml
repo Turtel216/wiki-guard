@@ -1,0 +1,65 @@
+# One small PostgreSQL for the Iceberg catalog, MLflow and the serving tables.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: postgres
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: postgres
+    spec:
+      containers:
+        - name: postgres
+          # Keep in step with images.postgres in versions.toml.
+          image: postgres:18.7-alpine
+          args:
+            - -c
+            - shared_buffers=128MB
+            - -c
+            - max_connections=50
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: password
+          ports:
+            - name: postgres
+              containerPort: 5432
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - postgres
+            periodSeconds: 10
+          resources:
+            requests:
+              memory: 600Mi
+            limits:
+              memory: 600Mi
+          volumeMounts:
+            # The image keeps its data in a versioned directory below this path.
+            - name: data
+              mountPath: /var/lib/postgresql
+            - name: init
+              mountPath: /docker-entrypoint-initdb.d
+      volumes:
+        - name: init
+          configMap:
+            name: postgres-init
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 10Gi
