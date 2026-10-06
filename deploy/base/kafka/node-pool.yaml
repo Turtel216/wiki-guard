@@ -1,0 +1,30 @@
+# One node that is both controller and broker. A single broker is an
+# accepted risk: losing it pauses the pipeline but upstream can be re-read.
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaNodePool
+metadata:
+  name: combined
+  labels:
+    strimzi.io/cluster: wikiguard
+spec:
+  replicas: 1
+  roles:
+    - controller
+    - broker
+  storage:
+    type: jbod
+    volumes:
+      - id: 0
+        type: persistent-claim
+        size: 20Gi
+        kraftMetadata: shared
+        deleteClaim: false
+  resources:
+    requests:
+      memory: 1500Mi
+    limits:
+      memory: 1500Mi
+  # Heap is 70% of the memory limit. The rest is page cache and JVM overhead.
+  jvmOptions:
+    "-Xms": 1050m
+    "-Xmx": 1050m
