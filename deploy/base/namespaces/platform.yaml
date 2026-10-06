@@ -1,0 +1,5 @@
+# Shared services: Kafka, SeaweedFS, PostgreSQL and their operators.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: platform
