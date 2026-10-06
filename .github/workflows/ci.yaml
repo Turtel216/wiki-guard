@@ -30,9 +30,9 @@ jobs:
       - uses: sbt/setup-sbt@v1
       - uses: astral-sh/setup-uv@v5
       - name: Check formatting
-        run: sbt --batch scalafmtCheckAll scalafmtSbtCheck
+        run: sbt --batch scalafmtCheckAll integration/scalafmtCheckAll scalafmtSbtCheck
       - name: Check lint rules
-        run: sbt --batch "scalafixAll --check"
+        run: sbt --batch "scalafixAll --check" "integration/scalafixAll --check"
       - name: Train the parity model in Python
         working-directory: ml
         run: |
@@ -40,6 +40,22 @@ jobs:
           uv run python -m wikiguard_ml.parity "$WG_PARITY_DIR"
       - name: Run tests
         run: sbt --batch test
+
+  integration:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: jvm
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: sbt
+      - uses: sbt/setup-sbt@v1
+      - name: Run integration tests
+        run: sbt --batch integration/test
 
   python:
     runs-on: ubuntu-latest
