@@ -1,0 +1,29 @@
+# Runs once per cluster. It retries until SeaweedFS is up.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: seaweedfs-buckets
+spec:
+  backoffLimit: 10
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: create-buckets
+          # Keep in step with images.seaweedfs in versions.toml.
+          image: chrislusf/seaweedfs:4.53
+          command:
+            - /bin/sh
+            - /scripts/create-buckets.sh
+          resources:
+            requests:
+              memory: 128Mi
+            limits:
+              memory: 128Mi
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+      volumes:
+        - name: scripts
+          configMap:
+            name: seaweedfs-scripts

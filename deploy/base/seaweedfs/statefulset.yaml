@@ -1,0 +1,87 @@
+# Master, volume server, filer and S3 gateway in one process. That is enough
+# for one disk on one machine and keeps the memory footprint small.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: seaweedfs
+spec:
+  serviceName: seaweedfs-peer
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: seaweedfs
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: seaweedfs
+    spec:
+      containers:
+        - name: seaweedfs
+          # Keep in step with images.seaweedfs in versions.toml.
+          image: chrislusf/seaweedfs:4.53
+          args:
+            - server
+            - -dir=/data
+            # A stable name, so a restarted pod is still found under its old address.
+            - -ip=$(POD_NAME).seaweedfs-peer
+            - -ip.bind=0.0.0.0
+            # Small volumes suit a small disk. Zero lets the volume count follow free space.
+            - -master.volumeSizeLimitMB=1024
+            - -volume.max=0
+            - -s3
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            # The S3 gateway accepts exactly this key pair.
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: seaweedfs-s3
+                  key: access_key
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: seaweedfs-s3
+                  key: secret_key
+            # Tell the Go runtime to collect garbage before the pod limit is hit.
+            - name: GOMEMLIMIT
+              value: 400MiB
+          ports:
+            - name: s3
+              containerPort: 8333
+            - name: master
+              containerPort: 9333
+            - name: master-grpc
+              containerPort: 19333
+            - name: volume
+              containerPort: 8080
+            - name: volume-grpc
+              containerPort: 18080
+            - name: filer
+              containerPort: 8888
+            - name: filer-grpc
+              containerPort: 18888
+          readinessProbe:
+            httpGet:
+              path: /status
+              port: s3
+            periodSeconds: 10
+          resources:
+            requests:
+              memory: 500Mi
+            limits:
+              memory: 500Mi
+          volumeMounts:
+            - name: data
+              mountPath: /data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 100Gi
