@@ -9,7 +9,7 @@ wikis:
 #   WikiGuard/<version> (<repo_url>; <contact>)
 # Both values must be filled in before anything connects to Wikimedia.
 user_agent:
-  repo_url: ""
+  repo_url: "https://github.com/Turtel216/wiki-guard"
   contact: ""
 
 stream:
