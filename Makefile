@@ -23,6 +23,22 @@ integration-test: ## Run the tests that start containers (needs Docker)
 parity-fixture: ## Train a tiny model in Python for the JVM parity test
 	$(UV) python -m wikiguard_ml.parity $(WG_PARITY_DIR)
 
+.PHONY: dev-up
+dev-up: ## Start the local dev cluster (needs Docker, k3d and kubectl)
+	scripts/dev-up.sh
+
+.PHONY: dev-down
+dev-down: ## Delete the local dev cluster and its data
+	scripts/dev-down.sh
+
+.PHONY: lint-deploy
+lint-deploy: ## Check the manifests under deploy/ (needs kubectl and kubeconform)
+	scripts/validate-deploy.sh
+
+.PHONY: prod-secrets
+prod-secrets: ## Generate the encrypted production credentials (needs sops and age)
+	scripts/prod-secrets.sh
+
 .PHONY: fmt
 fmt: ## Format and auto-fix Scala and Python code
 	$(SBT) scalafixAll integration/scalafixAll scalafmtAll integration/scalafmtAll scalafmtSbt
