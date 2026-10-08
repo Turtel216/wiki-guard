@@ -57,6 +57,19 @@ jobs:
       - name: Run integration tests
         run: sbt --batch integration/test
 
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install kubeconform
+        run: |
+          . scripts/lib.sh
+          version="$(pinned tools.kubeconform)"
+          curl -sfL "https://github.com/yannh/kubeconform/releases/download/$version/kubeconform-linux-amd64.tar.gz" \
+            | sudo tar -xz -C /usr/local/bin kubeconform
+      - name: Check the deploy manifests
+        run: scripts/validate-deploy.sh
+
   python:
     runs-on: ubuntu-latest
     defaults:
