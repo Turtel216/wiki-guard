@@ -24,6 +24,11 @@ ThisBuild / semanticdbVersion := scalafixSemanticdb.revision
 
 lazy val scalatest = "org.scalatest" %% "scalatest" % Versions("jvm.scalatest") % Test
 
+lazy val jackson = Seq(
+  "com.fasterxml.jackson.core" % "jackson-databind" % Versions("jvm.jackson"),
+  "com.fasterxml.jackson.dataformat" % "jackson-dataformat-yaml" % Versions("jvm.jackson")
+)
+
 // Spark is provided by the runtime image and must not end up in our jars.
 lazy val sparkSql = "org.apache.spark" %% "spark-sql" % Versions("jvm.spark") % Provided
 
@@ -64,7 +69,10 @@ lazy val root = (project in file("."))
 // Generated protos, config, metrics, Kafka and S3 helpers.
 lazy val common = (project in file("common"))
   .settings(commonSettings)
-  .settings(name := "wikiguard-common")
+  .settings(
+    name := "wikiguard-common",
+    libraryDependencies ++= jackson
+  )
 
 // Pure feature functions. This module must never depend on Spark.
 lazy val featuresCore = (project in file("features-core"))
