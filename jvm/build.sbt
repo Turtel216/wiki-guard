@@ -29,6 +29,20 @@ lazy val jackson = Seq(
   "com.fasterxml.jackson.dataformat" % "jackson-dataformat-yaml" % Versions("jvm.jackson")
 )
 
+lazy val kafkaClients = "org.apache.kafka" % "kafka-clients" % Versions("jvm.kafka")
+
+lazy val slf4jApi = "org.slf4j" % "slf4j-api" % Versions("jvm.slf4j")
+
+// The log4j backend and its JSON layout. Only needed when a service runs.
+lazy val log4jRuntime = Seq("log4j-core", "log4j-slf4j2-impl", "log4j-layout-template-json")
+  .map(module => "org.apache.logging.log4j" % module % Versions("jvm.log4j") % Runtime)
+
+lazy val prometheus = Seq(
+  "prometheus-metrics-core",
+  "prometheus-metrics-exporter-httpserver",
+  "prometheus-metrics-instrumentation-jvm"
+).map(module => "io.prometheus" % module % Versions("jvm.prometheus"))
+
 // Spark is provided by the runtime image and must not end up in our jars.
 lazy val sparkSql = "org.apache.spark" %% "spark-sql" % Versions("jvm.spark") % Provided
 
@@ -83,7 +97,10 @@ lazy val featuresCore = (project in file("features-core"))
 lazy val ingestor = (project in file("ingestor"))
   .dependsOn(common)
   .settings(commonSettings)
-  .settings(name := "wikiguard-ingestor")
+  .settings(
+    name := "wikiguard-ingestor",
+    libraryDependencies ++= Seq(kafkaClients, slf4jApi) ++ log4jRuntime ++ prometheus
+  )
 
 // Rate-limited Wikimedia API client.
 lazy val enricher = (project in file("enricher"))
