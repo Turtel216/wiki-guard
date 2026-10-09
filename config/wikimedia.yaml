@@ -20,6 +20,12 @@ stream:
   # Backoff between reconnects after repeated errors.
   reconnect_min_seconds: 1
   reconnect_max_seconds: 60
+  # The stream carries every wiki, so it is never quiet. A connection that
+  # delivers nothing for this long is treated as dead and reopened.
+  idle_timeout_seconds: 60
+  # How far back upstream lets a client resume. A resume point older than
+  # this means events were lost for good.
+  upstream_retention_days: 7
 
 api:
   # Requests per minute Wikimedia allows for our client class.
