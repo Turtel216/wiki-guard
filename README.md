@@ -4,7 +4,8 @@ WikiGuard scores every human edit to English Wikipedia articles for revert
 risk within seconds, then grades itself against the community's reverts.
 It is read-only and never edits Wikipedia.
 
-Status: early scaffolding. Nothing connects to Wikimedia yet.
+Status: early. The ingestor exists but is not deployed, and nothing connects
+to Wikimedia yet.
 
 ## A note on scale
 
@@ -71,6 +72,25 @@ through the `k3d-wikiguard-dev` kubectl context:
 ```sh
 kubectl --context k3d-wikiguard-dev -n platform get pods
 ```
+
+## Ingestor
+
+The ingestor copies events from one stream connection into the raw Kafka
+topics. It keeps no state of its own: on every connect it reads the last
+record it wrote and resumes right after it. It is configured through
+environment variables:
+
+| Variable | Meaning | Default |
+| --- | --- | --- |
+| `WG_SOURCE` | `live` for the Wikimedia stream, `fixture` for a recording | none, must be set |
+| `WG_KAFKA_BOOTSTRAP_SERVERS` | Kafka broker address | none, must be set |
+| `WG_FIXTURE_FILE` | Recording to replay, as raw server-sent events text | none |
+| `WG_REPLAY_SPEED` | How many times faster than real life to replay | `1` |
+| `WG_WIKIMEDIA_CONFIG` | Path to the Wikimedia config file | `config/wikimedia.yaml` |
+| `WG_METRICS_PORT` | Port that serves `/metrics` | `9400` |
+
+The `live` source refuses to start until `user_agent.contact` is filled in
+in `config/wikimedia.yaml`.
 
 Setting up the real server is described in
 [docs/runbooks/server-bootstrap.md](docs/runbooks/server-bootstrap.md).
