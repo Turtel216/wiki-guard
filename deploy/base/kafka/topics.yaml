@@ -1,0 +1,27 @@
+# Upstream events exactly as received, one topic per upstream stream.
+# The ingestor is the only writer. Retention is seven days, the same window
+# upstream keeps, so a parser fix can be replayed over everything that can
+# still be re-read anyway.
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: wg.raw.revision-create
+  labels:
+    strimzi.io/cluster: wikiguard
+spec:
+  partitions: 3
+  replicas: 1
+  config:
+    retention.ms: 604800000
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: wg.raw.revision-tags-change
+  labels:
+    strimzi.io/cluster: wikiguard
+spec:
+  partitions: 3
+  replicas: 1
+  config:
+    retention.ms: 604800000
