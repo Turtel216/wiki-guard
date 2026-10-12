@@ -47,6 +47,7 @@ kc -n platform rollout status statefulset/postgres --timeout=5m
 kc -n platform rollout status statefulset/seaweedfs --timeout=5m
 kc -n platform wait job/seaweedfs-buckets --for=condition=Complete --timeout=5m
 kc -n platform wait kafka/wikiguard --for=condition=Ready --timeout=15m
+kc -n platform wait kafkatopic --all --for=condition=Ready --timeout=5m
 
 echo
 echo "The dev cluster is up. Look around with:"
