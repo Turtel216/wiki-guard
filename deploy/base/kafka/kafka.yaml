@@ -24,3 +24,11 @@ spec:
       transaction.state.log.min.isr: 1
       # Seven days, the same window upstream keeps for resuming the stream.
       log.retention.hours: 168
+  # Creates and updates the topics declared as KafkaTopic resources.
+  entityOperator:
+    topicOperator:
+      resources:
+        requests:
+          memory: 256Mi
+        limits:
+          memory: 256Mi
