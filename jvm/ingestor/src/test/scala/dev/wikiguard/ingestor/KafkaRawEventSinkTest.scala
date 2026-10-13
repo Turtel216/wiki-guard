@@ -1,7 +1,7 @@
 package dev.wikiguard.ingestor
 
 import java.nio.charset.StandardCharsets
-import java.time.Instant
+import java.time.{Clock, Instant, ZoneOffset}
 import java.util.Optional
 
 import scala.jdk.CollectionConverters._
@@ -23,6 +23,9 @@ class KafkaRawEventSinkTest extends AnyFunSuite {
   private val Revisions = "wg.raw.revision-create"
   private val Tags = "wg.raw.revision-tags-change"
   private val Topics = Set(Revisions, Tags)
+
+  // A clock that stands still, so every write falls into the same millisecond.
+  private val clock = Clock.fixed(Instant.ofEpochMilli(1000L), ZoneOffset.UTC)
 
   private def producer(autoComplete: Boolean = true): MockProducer[String, String] =
     new MockProducer(
@@ -87,11 +90,11 @@ class KafkaRawEventSinkTest extends AnyFunSuite {
   }
 
   private def lastEvent(stored: Stored*): Either[SinkError, Option[ResumePoint]] =
-    new KafkaRawEventSink(producer(), () => consumer(stored), Topics).lastEvent()
+    new KafkaRawEventSink(producer(), () => consumer(stored), Topics, clock).lastEvent()
 
   test("a record is keyed by page id and carries the body and the stream position") {
     val kafka = producer()
-    val sink = new KafkaRawEventSink(kafka, () => consumer(Nil), Topics)
+    val sink = new KafkaRawEventSink(kafka, () => consumer(Nil), Topics, clock)
 
     assert(sink.write(record()) == Right(()))
 
@@ -105,7 +108,7 @@ class KafkaRawEventSinkTest extends AnyFunSuite {
 
   test("an event without a page id or a position is still written") {
     val kafka = producer()
-    val sink = new KafkaRawEventSink(kafka, () => consumer(Nil), Topics)
+    val sink = new KafkaRawEventSink(kafka, () => consumer(Nil), Topics, clock)
 
     assert(sink.write(record(pageId = None, eventId = None)) == Right(()))
 
@@ -114,9 +117,18 @@ class KafkaRawEventSinkTest extends AnyFunSuite {
     assert(sent.forall(_.headers.toArray.isEmpty))
   }
 
+  test("no two records get the same timestamp, even within one millisecond") {
+    val kafka = producer()
+    val sink = new KafkaRawEventSink(kafka, () => consumer(Nil), Topics, clock)
+
+    (1 to 3).foreach(_ => sink.write(record()))
+
+    assert(kafka.history.asScala.toVector.map(_.timestamp.toLong) == Vector(1000L, 1001L, 1002L))
+  }
+
   test("a write the broker refuses is reported") {
     val kafka = producer(autoComplete = false)
-    val sink = new KafkaRawEventSink(kafka, () => consumer(Nil), Topics)
+    val sink = new KafkaRawEventSink(kafka, () => consumer(Nil), Topics, clock)
     // The mock answers on another thread, the way a broker would.
     val refusal = new IllegalStateException("broker said no")
     val broker = new Thread(() => {
@@ -168,7 +180,8 @@ class KafkaRawEventSinkTest extends AnyFunSuite {
   }
 
   test("a missing topic is an error") {
-    val sink = new KafkaRawEventSink(producer(), () => consumer(Nil), Topics + "wg.raw.unknown")
+    val sink =
+      new KafkaRawEventSink(producer(), () => consumer(Nil), Topics + "wg.raw.unknown", clock)
 
     assert(sink.lastEvent().left.exists(_.message.contains("wg.raw.unknown")))
   }

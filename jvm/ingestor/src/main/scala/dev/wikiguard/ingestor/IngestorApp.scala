@@ -49,9 +49,10 @@ object IngestorApp {
       sleep = sleep,
       jitter = () => ThreadLocalRandom.current().nextDouble()
     )
+    val sink = KafkaRawEventSink(config.kafkaBootstrapServers, topics.values.toSet)
     val ingestor = new Ingestor(
       source,
-      KafkaRawEventSink(config.kafkaBootstrapServers, topics.values.toSet),
+      sink,
       new EventRouter(wikimedia.wikis, topics),
       new LoggingGapRecorder,
       new IngestMetrics(registry),
@@ -59,7 +60,10 @@ object IngestorApp {
     )
     logger.info("Ingesting {} for {}", wikimedia.stream.names, wikimedia.wikis)
     try ingestor.run()
-    finally metricsServer.close()
+    finally {
+      sink.close()
+      metricsServer.close()
+    }
   }
 
   /** Every stream that is asked for must have a raw topic to go to. */

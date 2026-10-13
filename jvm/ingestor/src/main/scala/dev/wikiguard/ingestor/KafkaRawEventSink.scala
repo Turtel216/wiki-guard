@@ -1,8 +1,9 @@
 package dev.wikiguard.ingestor
 
 import java.nio.charset.StandardCharsets
-import java.time.{Duration, Instant}
+import java.time.{Clock, Duration, Instant}
 import java.util.Properties
+import java.util.concurrent.atomic.AtomicLong
 
 import scala.annotation.tailrec
 import scala.jdk.CollectionConverters._
@@ -20,6 +21,9 @@ import org.apache.kafka.common.serialization.{StringDeserializer, StringSerializ
  * Kafka in stream order, and the newest record is always a safe place to resume from. At a few
  * events per second the wait costs nothing that matters.
  *
+ * Records are spread over partitions, so "newest" needs something that orders them across
+ * partitions. That is the record timestamp, which this sink sets itself and never repeats.
+ *
  * The stream position of an event travels in a record header. That makes Kafka the only place that
  * knows how far the ingestor got.
  *
@@ -27,19 +31,30 @@ import org.apache.kafka.common.serialization.{StringDeserializer, StringSerializ
  *   opens a consumer for looking up the last written event; it is closed after each lookup
  * @param topics
  *   every raw topic the ingestor writes to
+ * @param clock
+ *   gives the time that records are stamped with
  */
 final class KafkaRawEventSink(
     producer: Producer[String, String],
     newConsumer: () => Consumer[String, String],
-    topics: Set[String]
-) extends RawEventSink {
+    topics: Set[String],
+    clock: Clock
+) extends RawEventSink
+    with AutoCloseable {
 
   import KafkaRawEventSink.{EventIdHeader, ReadTimeout}
 
+  // The one piece of state in here: the timestamp of the latest record this process wrote.
+  private val lastTimestamp = new AtomicLong(0L)
+
   def write(record: RawRecord): Either[SinkError, Unit] = {
-    val message = record.pageId.fold(new ProducerRecord[String, String](record.topic, record.json)) {
-      pageId => new ProducerRecord(record.topic, pageId.toString, record.json)
-    }
+    val message = new ProducerRecord[String, String](
+      record.topic,
+      KafkaRawEventSink.AnyPartition,
+      nextTimestamp(),
+      record.pageId.map(_.toString).orNull,
+      record.json
+    )
     record.eventId.foreach { id =>
       message.headers.add(EventIdHeader, id.getBytes(StandardCharsets.UTF_8))
     }
@@ -49,12 +64,18 @@ final class KafkaRawEventSink(
       .map(error => SinkError.WriteFailed(record.topic, error.toString))
   }
 
+  /** The current time, moved forward a millisecond when two writes fall into the same one. */
+  private def nextTimestamp(): java.lang.Long =
+    lastTimestamp.updateAndGet(last => math.max(last + 1, clock.millis()))
+
   def lastEvent(): Either[SinkError, Option[ResumePoint]] =
     Try {
       Using.resource(newConsumer()) { consumer =>
         newest(lastRecords(consumer))
       }
     }.toEither.left.map(error => SinkError.ReadFailed(error.toString))
+
+  def close(): Unit = producer.close()
 
   /** Reads the last record of every partition that has one. */
   private def lastRecords(consumer: Consumer[String, String]) = {
@@ -97,7 +118,7 @@ final class KafkaRawEventSink(
       poll(consumer, wanted, found ++ batch, deadline)
     }
 
-  /** Records are written one at a time, so the latest broker timestamp is the newest event. */
+  /** No two records share a timestamp, so the latest one is the newest event. */
   private def newest(records: Vector[ConsumerRecord[String, String]]): Option[ResumePoint] =
     records
       .flatMap(record => eventId(record).map(id => (record, id)))
@@ -124,6 +145,9 @@ object KafkaRawEventSink {
 
   private val ReadTimeout = Duration.ofSeconds(30)
 
+  // The Java client takes "no partition" to mean that the key decides.
+  private val AnyPartition: Integer = null // scalafix:ok DisableSyntax.null
+
   def apply(bootstrapServers: String, topics: Set[String]): KafkaRawEventSink = {
     val producer =
       new KafkaProducer(
@@ -137,7 +161,7 @@ object KafkaRawEventSink {
         new StringDeserializer,
         new StringDeserializer
       )
-    new KafkaRawEventSink(producer, () => newConsumer(), topics)
+    new KafkaRawEventSink(producer, () => newConsumer(), topics, Clock.systemUTC())
   }
 
   private def producerSettings(bootstrapServers: String): Properties = {
