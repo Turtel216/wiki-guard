@@ -129,6 +129,7 @@ lazy val batch = (project in file("batch"))
 // Tests that need Docker. This project is left out of the root aggregate on purpose,
 // so a plain `sbt test` never starts containers. Run it with `sbt integration/test`.
 lazy val integration = (project in file("integration"))
+  .dependsOn(ingestor % "test->test")
   .settings(commonSettings)
   .settings(
     name := "wikiguard-integration",
@@ -139,11 +140,13 @@ lazy val integration = (project in file("integration"))
       "org.apache.hadoop" % "hadoop-aws" % Versions("jvm.hadoop") % Test,
       "org.postgresql" % "postgresql" % Versions("jvm.postgres_jdbc") % Test,
       "org.testcontainers" % "testcontainers" % Versions("jvm.testcontainers") % Test,
-      "org.testcontainers" % "testcontainers-postgresql" % Versions("jvm.testcontainers") % Test
+      "org.testcontainers" % "testcontainers-postgresql" % Versions("jvm.testcontainers") % Test,
+      "org.testcontainers" % "testcontainers-kafka" % Versions("jvm.testcontainers") % Test
     ),
     Test / javaOptions ++= sparkJavaOptions,
     Test / envVars ++= Map(
       "WG_SEAWEEDFS_IMAGE" -> Versions("images.seaweedfs"),
-      "WG_POSTGRES_IMAGE" -> Versions("images.postgres")
+      "WG_POSTGRES_IMAGE" -> Versions("images.postgres"),
+      "WG_KAFKA_IMAGE" -> Versions("images.kafka")
     )
   )
