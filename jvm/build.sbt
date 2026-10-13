@@ -95,6 +95,7 @@ lazy val featuresCore = (project in file("features-core"))
 
 // EventStreams to Kafka.
 lazy val ingestor = (project in file("ingestor"))
+  .enablePlugins(JavaAppPackaging)
   .dependsOn(common)
   .settings(commonSettings)
   .settings(
