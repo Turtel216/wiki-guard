@@ -1,0 +1,5 @@
+# The pipeline itself: the ingestor and, later, everything downstream of it.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: wikiguard
