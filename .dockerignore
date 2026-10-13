@@ -1,0 +1,5 @@
+# Images are built from the repository root, so that they can take the
+# shared config. Everything is left out except what an image copies.
+*
+!config/wikimedia.yaml
+!jvm/ingestor/target/universal/stage/lib

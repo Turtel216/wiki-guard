@@ -3,6 +3,10 @@
 SBT := cd jvm && sbt --batch
 UV := cd ml && uv run
 
+# Images are tagged "dev" locally. CI tags them with the commit.
+INGESTOR_IMAGE := ghcr.io/turtel216/wikiguard-ingestor
+IMAGE_TAG ?= dev
+
 # Where the Python side writes the model and scores that the JVM parity test reads.
 export WG_PARITY_DIR := $(CURDIR)/jvm/target/parity
 
@@ -22,6 +26,11 @@ integration-test: ## Run the tests that start containers (needs Docker)
 .PHONY: parity-fixture
 parity-fixture: ## Train a tiny model in Python for the JVM parity test
 	$(UV) python -m wikiguard_ml.parity $(WG_PARITY_DIR)
+
+.PHONY: image-ingestor
+image-ingestor: ## Build the ingestor container image (needs Docker)
+	$(SBT) ingestor/stage
+	docker build -f jvm/ingestor/Dockerfile -t $(INGESTOR_IMAGE):$(IMAGE_TAG) .
 
 .PHONY: dev-up
 dev-up: ## Start the local dev cluster (needs Docker, k3d and kubectl)

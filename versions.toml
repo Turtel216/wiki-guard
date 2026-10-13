@@ -53,5 +53,7 @@ kubeconform = "v0.8.0"
 # Container images used by the integration tests and the cluster manifests.
 seaweedfs = "chrislusf/seaweedfs:4.53"
 postgres = "postgres:18.7-alpine"
+# Base image of our own service images.
+jre = "eclipse-temurin:21.0.13_9-jre-noble"
 # The broker for the integration tests. Keep in step with platform.kafka_broker.
 kafka = "apache/kafka:4.3.2"
