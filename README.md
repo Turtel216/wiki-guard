@@ -88,6 +88,7 @@ environment variables:
 | `WG_REPLAY_SPEED` | How many times faster than real life to replay | `1` |
 | `WG_WIKIMEDIA_CONFIG` | Path to the Wikimedia config file | `config/wikimedia.yaml` |
 | `WG_METRICS_PORT` | Port that serves `/metrics` | `9400` |
+| `WG_STAY_UP_AFTER_REPLAY` | `true` keeps the process up once a recording has ended | `false` |
 
 The `live` source refuses to start until `user_agent.contact` is filled in
 in `config/wikimedia.yaml`.

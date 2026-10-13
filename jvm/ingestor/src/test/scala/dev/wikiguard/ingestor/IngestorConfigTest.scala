@@ -18,7 +18,8 @@ class IngestorConfigTest extends AnyFunSuite {
       source = Source.Live,
       kafkaBootstrapServers = "kafka:9092",
       wikimediaFile = Paths.get("config/wikimedia.yaml"),
-      metricsPort = 9400
+      metricsPort = 9400,
+      staysUpAfterReplay = false
     )
 
     assert(IngestorConfig.fromEnv(Live) == Right(expected))
@@ -28,14 +29,16 @@ class IngestorConfigTest extends AnyFunSuite {
     val env = Fixture ++ Map(
       "WG_REPLAY_SPEED" -> "500",
       "WG_WIKIMEDIA_CONFIG" -> "/etc/wikiguard/wikimedia.yaml",
-      "WG_METRICS_PORT" -> "9999"
+      "WG_METRICS_PORT" -> "9999",
+      "WG_STAY_UP_AFTER_REPLAY" -> "true"
     )
 
     val expected = IngestorConfig(
       source = Source.Fixture(Paths.get("events.sse"), 500.0),
       kafkaBootstrapServers = "kafka:9092",
       wikimediaFile = Paths.get("/etc/wikiguard/wikimedia.yaml"),
-      metricsPort = 9999
+      metricsPort = 9999,
+      staysUpAfterReplay = true
     )
     assert(IngestorConfig.fromEnv(env) == Right(expected))
   }
@@ -73,6 +76,12 @@ class IngestorConfigTest extends AnyFunSuite {
       val config = IngestorConfig.fromEnv(Fixture + ("WG_REPLAY_SPEED" -> speed))
       assert(config.isLeft, s"for speed $speed")
     }
+  }
+
+  test("staying up after a replay must be true or false") {
+    val config = IngestorConfig.fromEnv(Fixture + ("WG_STAY_UP_AFTER_REPLAY" -> "maybe"))
+
+    assert(config.isLeft)
   }
 
   test("a metrics port must be a port number") {

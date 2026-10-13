@@ -1,7 +1,7 @@
 package dev.wikiguard.ingestor
 
 import java.time.Clock
-import java.util.concurrent.{Executors, ScheduledExecutorService, ThreadLocalRandom}
+import java.util.concurrent.{CountDownLatch, Executors, ScheduledExecutorService, ThreadLocalRandom}
 
 import scala.concurrent.duration.FiniteDuration
 
@@ -59,7 +59,7 @@ object IngestorApp {
       timing
     )
     logger.info("Ingesting {} for {}", wikimedia.stream.names, wikimedia.wikis)
-    try ingestor.run()
+    try ingestor.run().map(_ => if (config.staysUpAfterReplay) idle())
     finally {
       sink.close()
       metricsServer.close()
@@ -93,6 +93,12 @@ object IngestorApp {
       thread.setDaemon(true)
       thread
     }
+
+  /** Keeps the process and its metrics endpoint alive with nothing left to do. */
+  private def idle(): Unit = {
+    logger.info("The recording has been replayed to its end; staying up")
+    new CountDownLatch(1).await()
+  }
 
   private def sleep(time: FiniteDuration): Unit = Thread.sleep(time.toMillis)
 

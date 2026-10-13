@@ -14,7 +14,8 @@ final case class IngestorConfig(
     source: IngestorConfig.Source,
     kafkaBootstrapServers: String,
     wikimediaFile: Path,
-    metricsPort: Int
+    metricsPort: Int,
+    staysUpAfterReplay: Boolean
 )
 
 object IngestorConfig {
@@ -36,6 +37,7 @@ object IngestorConfig {
   val MetricsPortKey: String = "WG_METRICS_PORT"
   val FixtureFileKey: String = "WG_FIXTURE_FILE"
   val ReplaySpeedKey: String = "WG_REPLAY_SPEED"
+  val StayUpKey: String = "WG_STAY_UP_AFTER_REPLAY"
 
   private val DefaultWikimediaFile = "config/wikimedia.yaml"
   private val DefaultMetricsPort = 9400
@@ -46,11 +48,13 @@ object IngestorConfig {
       source <- source(env)
       kafka <- required(env, KafkaKey)
       port <- metricsPort(env)
+      staysUp <- staysUp(env)
     } yield IngestorConfig(
       source = source,
       kafkaBootstrapServers = kafka,
       wikimediaFile = Paths.get(value(env, WikimediaFileKey).getOrElse(DefaultWikimediaFile)),
-      metricsPort = port
+      metricsPort = port,
+      staysUpAfterReplay = staysUp
     )
 
   /** There is no default source, so that nothing connects to Wikimedia by accident. */
@@ -70,6 +74,15 @@ object IngestorConfig {
       raw.toDoubleOption
         .filter(speed => speed > 0 && !speed.isInfinity)
         .toRight(ConfigError.Invalid(ReplaySpeedKey, "must be a number above zero"))
+    }
+
+  /**
+   * A finished replay normally ends the process. Inside a cluster that would only get it restarted,
+   * so there it can be told to stay up and do nothing instead.
+   */
+  private def staysUp(env: Map[String, String]): Either[ConfigError, Boolean] =
+    value(env, StayUpKey).fold[Either[ConfigError, Boolean]](Right(false)) { raw =>
+      raw.toBooleanOption.toRight(ConfigError.Invalid(StayUpKey, "must be true or false"))
     }
 
   private def metricsPort(env: Map[String, String]): Either[ConfigError, Int] =
