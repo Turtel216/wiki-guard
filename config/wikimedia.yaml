@@ -10,7 +10,7 @@ wikis:
 # Both values must be filled in before anything connects to Wikimedia.
 user_agent:
   repo_url: "https://github.com/Turtel216/wiki-guard"
-  contact: ""
+  contact: "papadimitrios216@gmail.com"
 
 stream:
   url: https://stream.wikimedia.org/v2/stream
