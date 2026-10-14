@@ -14,20 +14,29 @@ import scala.util.Using
 import io.prometheus.metrics.model.registry.PrometheusRegistry
 import org.apache.kafka.clients.admin.{Admin, NewTopic}
 import org.apache.kafka.clients.consumer.{ConsumerRecord, KafkaConsumer}
+import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.common.TopicPartition
-import org.apache.kafka.common.serialization.StringDeserializer
+import org.apache.kafka.common.serialization.{
+  ByteArrayDeserializer,
+  ByteArraySerializer,
+  StringDeserializer,
+  StringSerializer
+}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.funsuite.AnyFunSuite
 import org.testcontainers.kafka.KafkaContainer
 import org.testcontainers.utility.DockerImageName
 
+import dev.wikiguard.contracts.v1.{IngestGap => IngestGapMessage}
 import dev.wikiguard.ingestor.{
   Backoff,
   EventRouter,
   FixtureSource,
   IngestError,
+  IngestGap,
   IngestMetrics,
   Ingestor,
+  KafkaGapRecorder,
   KafkaRawEventSink,
   RawRecord,
   ResumePoint,
@@ -40,6 +49,8 @@ import dev.wikiguard.ingestor.{
  * and a whole replay that is stopped and started again.
  */
 class KafkaIngestTest extends AnyFunSuite with BeforeAndAfterAll {
+
+  import KafkaIngestTest.Topics
 
   private val Partitions = 3
 
@@ -55,14 +66,6 @@ class KafkaIngestTest extends AnyFunSuite with BeforeAndAfterAll {
   override def afterAll(): Unit = {
     kafka.stop()
     super.afterAll()
-  }
-
-  /** The topics of one test, so that tests cannot see each other's records. */
-  final private case class Topics(revisions: String, tags: String) {
-    val all: Set[String] = Set(revisions, tags)
-
-    val byStream: Map[String, String] =
-      Map(SampleEvents.RevisionCreate -> revisions, SampleEvents.TagsChange -> tags)
   }
 
   private def newTopics(): Topics = {
@@ -144,7 +147,7 @@ class KafkaIngestTest extends AnyFunSuite with BeforeAndAfterAll {
         new FixtureSource(file, speed = 1.0, sleep = _ => ()),
         sink,
         new EventRouter(Set("enwiki"), topics.byStream),
-        _ => (),
+        _ => Right(()),
         new IngestMetrics(new PrometheusRegistry),
         timing
       ).run()
@@ -256,6 +259,59 @@ class KafkaIngestTest extends AnyFunSuite with BeforeAndAfterAll {
     assert(replay(recording(Seq(event(1))), topics).isLeft)
   }
 
+  test("a gap is published once per wiki and reads back as the contract says") {
+    val topic = s"wg.ops.ingest-gaps.${topicCounter.incrementAndGet()}"
+    Using.resource(Admin.create(connection())) { admin =>
+      admin.createTopics(Seq(new NewTopic(topic, Partitions, 1.toShort)).asJava).all().get()
+    }
+    val gap =
+      IngestGap(Instant.parse("2026-11-01T08:00:00Z"), Instant.parse("2026-11-09T08:00:03Z"))
+    val settings = connection()
+    settings.put("enable.idempotence", "true")
+
+    val result = Using.resource(
+      new KafkaGapRecorder(
+        new KafkaProducer(settings, new StringSerializer, new ByteArraySerializer),
+        topic,
+        Set("enwiki", "dewiki"),
+        Clock.systemUTC()
+      )
+    )(_.record(gap))
+
+    assert(result == Right(()))
+    val messages = Using.resource(
+      new KafkaConsumer(connection(), new StringDeserializer, new ByteArrayDeserializer)
+    ) { consumer =>
+      val partitions = (0 until Partitions).map(new TopicPartition(topic, _))
+      consumer.assign(partitions.asJava)
+      consumer.seekToBeginning(partitions.asJava)
+      Iterator
+        .continually(consumer.poll(Duration.ofSeconds(2)).asScala.toVector)
+        .take(5)
+        .flatten
+        .take(2)
+        .toVector
+    }
+    val decoded = messages.map(record => record.key -> IngestGapMessage.parseFrom(record.value))
+    assert(decoded.map { case (key, _) => key }.toSet == Set("enwiki", "dewiki"))
+    assert(decoded.forall { case (key, message) => message.getWiki == key })
+    assert(decoded.forall { case (_, message) =>
+      message.getGapStart.getSeconds == gap.from.getEpochSecond &&
+      message.getGapEnd.getSeconds == gap.to.getEpochSecond
+    })
+  }
+
   private def requiredEnv(name: String): String =
     sys.env.getOrElse(name, sys.error(s"$name is not set; run this test through sbt"))
+}
+
+object KafkaIngestTest {
+
+  /** The topics of one test, so that tests cannot see each other's records. */
+  final case class Topics(revisions: String, tags: String) {
+    val all: Set[String] = Set(revisions, tags)
+
+    val byStream: Map[String, String] =
+      Map(SampleEvents.RevisionCreate -> revisions, SampleEvents.TagsChange -> tags)
+  }
 }
