@@ -1,0 +1,20 @@
+# The WikiGuard services themselves.
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: wikiguard
+  namespace: flux-system
+spec:
+  # Switched off until the prod overlay names a published image. Turning
+  # this on is the moment the server first connects to Wikimedia.
+  suspend: true
+  dependsOn:
+    - name: platform
+  interval: 10m
+  path: ./deploy/overlays/prod/wikiguard
+  prune: true
+  wait: true
+  timeout: 5m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system

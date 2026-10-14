@@ -1,0 +1,11 @@
+# Production runs images built by CI, named by the commit they were built
+# from. A release is a pull request that changes the tag below.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: wikiguard
+resources:
+  - ../../../base/ingestor
+images:
+  - name: ghcr.io/turtel216/wikiguard-ingestor
+    # No image has been published yet. Put the first commit that CI built here.
+    newTag: unreleased
