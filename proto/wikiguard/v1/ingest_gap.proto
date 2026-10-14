@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package wikiguard.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option java_multiple_files = true;
+option java_package = "dev.wikiguard.contracts.v1";
+
+// A stretch of time whose events were lost for good, because the ingestor
+// resumed from a point older than what upstream still keeps.
+//
+// Published on wg.ops.ingest-gaps.v1, keyed by wiki. The same gap may be
+// published more than once; wiki and gap_start together identify it.
+message IngestGap {
+  // The wiki that lost events, by database name such as "enwiki".
+  string wiki = 1;
+  // Time of the last event that was stored before the gap.
+  google.protobuf.Timestamp gap_start = 2;
+  // Time of the first event that was received after the gap.
+  google.protobuf.Timestamp gap_end = 3;
+  // When the ingestor noticed the gap.
+  google.protobuf.Timestamp detected_at = 4;
+}
