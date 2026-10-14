@@ -4,6 +4,7 @@ import java.time.{Clock, Duration => JavaDuration}
 import java.util.concurrent.atomic.LongAdder
 
 import scala.annotation.tailrec
+import scala.collection.BufferedIterator
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.jdk.DurationConverters._
 
@@ -52,12 +53,15 @@ final class Ingestor(
         logger.info("Connecting, resuming after {}", resume.fold("nothing")(_.eventTime.toString))
         val delivered = new LongAdder
         val result = source.connect(resume.map(_.eventId)) { events =>
-          noteGap(resume, events)
-            .map { event =>
-              delivered.increment()
-              handle(event)
-            }
-            .collectFirst { case Left(error) => error }
+          val buffered = events.buffered
+          reportGap(resume, buffered).left.toOption.orElse {
+            buffered
+              .map { event =>
+                delivered.increment()
+                handle(event)
+              }
+              .collectFirst { case Left(error) => error }
+          }
         }
         val outcome = judge(result, delivered.sum > 0)
         logger.info("Connection ended after {} events: {}", delivered.sum, outcome)
@@ -101,22 +105,29 @@ final class Ingestor(
     error.retryAfter.getOrElse(if (error.isThrottled) timing.backoff.max else Duration.Zero)
 
   /**
-   * Reports a gap when the resume point is older than what the source still has. The gap ends at
-   * the first event that arrives, so nothing is reported for a connection that delivers nothing.
+   * Records a gap when the resume point is older than what the source still has. The gap ends at
+   * the first event that arrives, so nothing is recorded for a connection that delivers nothing.
+   *
+   * This happens before any event of the connection is stored. If the gap cannot be recorded,
+   * nothing is stored either, and the next start finds the same gap again.
    */
-  private def noteGap(
+  private def reportGap(
       resume: Option[ResumePoint],
-      events: Iterator[StreamEvent]
-  ): Iterator[StreamEvent] =
-    resume.filter(isTooOld).fold(events) { point =>
-      val buffered = events.buffered
-      buffered.headOption.foreach { first =>
-        val firstTime = EventEnvelope.parse(first.data).flatMap(_.time)
-        gaps.record(IngestGap(point.eventTime, firstTime.getOrElse(timing.clock.instant())))
-        metrics.gapFound()
-      }
-      buffered
+      events: BufferedIterator[StreamEvent]
+  ): Either[SinkError, Unit] = {
+    val gap = for {
+      point <- resume.filter(isTooOld)
+      first <- events.headOption
+    } yield {
+      val firstTime = EventEnvelope.parse(first.data).flatMap(_.time)
+      IngestGap(point.eventTime, firstTime.getOrElse(timing.clock.instant()))
     }
+    gap.fold[Either[SinkError, Unit]](Right(())) { found =>
+      logger.error("Events between {} and {} are lost for good", found.from, found.to)
+      metrics.gapFound()
+      gaps.record(found)
+    }
+  }
 
   private def isTooOld(point: ResumePoint): Boolean = {
     val age = JavaDuration.between(point.eventTime, timing.clock.instant())

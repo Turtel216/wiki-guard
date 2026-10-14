@@ -22,7 +22,11 @@ class IngestorTest extends AnyFunSuite {
   private val german = SampleEvents.event("[d]", SampleEvents.body(wiki = "dewiki"))
 
   /** One run of the ingestor, with everything it touched kept for inspection. */
-  final private class Run(source: EventSource, val sink: MemorySink) {
+  final private class Run(
+      source: EventSource,
+      val sink: MemorySink,
+      gapsFail: Boolean = false
+  ) {
     private val sleeps = new ConcurrentLinkedQueue[FiniteDuration]()
     private val foundGaps = new ConcurrentLinkedQueue[IngestGap]()
 
@@ -38,7 +42,10 @@ class IngestorTest extends AnyFunSuite {
       source,
       sink,
       new EventRouter(Set("enwiki"), RawTopics.ByStream),
-      gap => { foundGaps.add(gap); () },
+      gap => {
+        foundGaps.add(gap)
+        Either.cond(!gapsFail, (), SinkError.WriteFailed("gaps", "broker is down"))
+      },
       new IngestMetrics(new PrometheusRegistry),
       timing
     ).run()
@@ -167,6 +174,16 @@ class IngestorTest extends AnyFunSuite {
     val done = runInto(sink)(closed(other, first))
 
     assert(done.gaps.map(_.to) == Vector(Instant.parse("2026-11-03T12:00:01Z")))
+  }
+
+  test("a gap that cannot be recorded stops the ingestor before anything is written") {
+    val stale = ResumePoint("[old]", Now.minusSeconds(8 * 24 * 3600))
+    val source = new ScriptedSource(Seq(closed(first, second), closed()))
+
+    val done = new Run(source, new MemorySink(stored = Some(stale)), gapsFail = true)
+
+    assert(done.result.left.exists(_.message.contains("broker is down")))
+    assert(done.writtenIds.isEmpty)
   }
 
   test("a recent resume point is not a gap") {

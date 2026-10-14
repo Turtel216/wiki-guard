@@ -50,17 +50,19 @@ object IngestorApp {
       jitter = () => ThreadLocalRandom.current().nextDouble()
     )
     val sink = KafkaRawEventSink(config.kafkaBootstrapServers, topics.values.toSet)
+    val gaps = KafkaGapRecorder(config.kafkaBootstrapServers, wikimedia.wikis)
     val ingestor = new Ingestor(
       source,
       sink,
       new EventRouter(wikimedia.wikis, topics),
-      new LoggingGapRecorder,
+      gaps,
       new IngestMetrics(registry),
       timing
     )
     logger.info("Ingesting {} for {}", wikimedia.stream.names, wikimedia.wikis)
     try ingestor.run().map(_ => if (config.staysUpAfterReplay) idle())
     finally {
+      gaps.close()
       sink.close()
       metricsServer.close()
     }
