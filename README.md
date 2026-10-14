@@ -62,7 +62,7 @@ make lint-deploy        # check the manifests under deploy/
 ## Dev cluster
 
 ```sh
-make dev-up     # k3s in Docker with Kafka, SeaweedFS and PostgreSQL
+make dev-up     # k3s in Docker with Kafka, SeaweedFS, PostgreSQL and the ingestor
 make dev-down   # delete it again
 ```
 
@@ -92,6 +92,11 @@ environment variables:
 
 The `live` source refuses to start until `user_agent.contact` is filled in
 in `config/wikimedia.yaml`.
+
+`make dev-up` also builds the ingestor image from the working tree and
+loads it into the cluster, where it replays a small hand-written sample
+into the raw topics. Run it again to pick up code changes. Pods in the
+`wikiguard` namespace cannot reach anything outside the cluster.
 
 Setting up the real server is described in
 [docs/runbooks/server-bootstrap.md](docs/runbooks/server-bootstrap.md).
