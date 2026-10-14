@@ -1,0 +1,52 @@
+: Hand-written events shaped like the upstream ones. Not a recording.
+: Nine are for enwiki; the rest are a canary and other wikis, which the
+: ingestor drops.
+
+event: message
+id: [{"topic":"sample","partition":0,"offset":1}]
+data: {"meta":{"stream":"mediawiki.revision-create","domain":"en.wikipedia.org","dt":"2026-11-01T10:00:00Z"},"database":"enwiki","page_id":101,"rev_id":5001}
+
+event: message
+id: [{"topic":"sample","partition":0,"offset":2}]
+data: {"meta":{"stream":"mediawiki.revision-create","domain":"en.wikipedia.org","dt":"2026-11-01T10:00:01Z"},"database":"enwiki","page_id":102,"rev_id":5002}
+
+event: message
+id: [{"topic":"sample","partition":0,"offset":3}]
+data: {"meta":{"stream":"mediawiki.revision-create","domain":"de.wikipedia.org","dt":"2026-11-01T10:00:01Z"},"database":"dewiki","page_id":103,"rev_id":5003}
+
+event: message
+id: [{"topic":"sample","partition":0,"offset":4}]
+data: {"meta":{"stream":"mediawiki.revision-create","domain":"canary","dt":"2026-11-01T10:00:02Z"},"database":"enwiki","page_id":104,"rev_id":5004}
+
+event: message
+id: [{"topic":"sample","partition":0,"offset":5}]
+data: {"meta":{"stream":"mediawiki.revision-create","domain":"en.wikipedia.org","dt":"2026-11-01T10:00:04Z"},"database":"enwiki","page_id":101,"rev_id":5005}
+
+event: message
+id: [{"topic":"sample","partition":0,"offset":6}]
+data: {"meta":{"stream":"mediawiki.revision-tags-change","domain":"en.wikipedia.org","dt":"2026-11-01T10:00:05Z"},"database":"enwiki","page_id":101,"rev_id":5006}
+
+event: message
+id: [{"topic":"sample","partition":0,"offset":7}]
+data: {"meta":{"stream":"mediawiki.revision-create","domain":"en.wikipedia.org","dt":"2026-11-01T10:00:07Z"},"database":"enwiki","page_id":107,"rev_id":5007}
+
+event: message
+id: [{"topic":"sample","partition":0,"offset":8}]
+data: {"meta":{"stream":"mediawiki.revision-create","domain":"fr.wikipedia.org","dt":"2026-11-01T10:00:08Z"},"database":"frwiki","page_id":108,"rev_id":5008}
+
+event: message
+id: [{"topic":"sample","partition":0,"offset":9}]
+data: {"meta":{"stream":"mediawiki.revision-tags-change","domain":"en.wikipedia.org","dt":"2026-11-01T10:00:10Z"},"database":"enwiki","page_id":102,"rev_id":5009}
+
+event: message
+id: [{"topic":"sample","partition":0,"offset":10}]
+data: {"meta":{"stream":"mediawiki.revision-create","domain":"en.wikipedia.org","dt":"2026-11-01T10:00:12Z"},"database":"enwiki","page_id":110,"rev_id":5010}
+
+event: message
+id: [{"topic":"sample","partition":0,"offset":11}]
+data: {"meta":{"stream":"mediawiki.revision-create","domain":"en.wikipedia.org","dt":"2026-11-01T10:00:15Z"},"database":"enwiki","page_id":107,"rev_id":5011}
+
+event: message
+id: [{"topic":"sample","partition":0,"offset":12}]
+data: {"meta":{"stream":"mediawiki.revision-create","domain":"en.wikipedia.org","dt":"2026-11-01T10:00:20Z"},"database":"enwiki","page_id":112,"rev_id":5012}
+

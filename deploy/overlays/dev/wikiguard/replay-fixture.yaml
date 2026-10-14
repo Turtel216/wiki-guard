@@ -1,0 +1,28 @@
+# Read events from the mounted recording instead of the live stream.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ingestor
+spec:
+  template:
+    spec:
+      containers:
+        - name: ingestor
+          env:
+            - name: WG_SOURCE
+              value: fixture
+            - name: WG_FIXTURE_FILE
+              value: /fixtures/sample-events.sse
+            - name: WG_REPLAY_SPEED
+              value: "10"
+            # Without this the pod would exit after the replay and be
+            # restarted over and over.
+            - name: WG_STAY_UP_AFTER_REPLAY
+              value: "true"
+          volumeMounts:
+            - name: fixture
+              mountPath: /fixtures
+      volumes:
+        - name: fixture
+          configMap:
+            name: ingestor-fixture

@@ -1,0 +1,17 @@
+# The dev cluster replays a recording and can never reach Wikimedia.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: wikiguard
+resources:
+  - ../../../base/ingestor
+  - no-internet.yaml
+images:
+  # Built from the working tree and loaded into the cluster by "make dev-up".
+  - name: ghcr.io/turtel216/wikiguard-ingestor
+    newTag: dev
+configMapGenerator:
+  - name: ingestor-fixture
+    files:
+      - sample-events.sse
+patches:
+  - path: replay-fixture.yaml
