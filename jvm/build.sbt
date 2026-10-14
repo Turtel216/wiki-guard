@@ -85,7 +85,22 @@ lazy val common = (project in file("common"))
   .settings(commonSettings)
   .settings(
     name := "wikiguard-common",
-    libraryDependencies ++= jackson
+    libraryDependencies ++= jackson,
+    // The Kafka contracts live in the repository root, next to their buf config.
+    Compile / PB.protoSources := Seq(baseDirectory.value / ".." / ".." / "proto"),
+    // Plain Java classes, so the generated code needs nothing but the Protobuf library.
+    PB.protocVersion := Versions("jvm.protobuf"),
+    Compile / PB.targets := Seq(
+      PB.gens.java(Versions("jvm.protobuf")) -> (Compile / sourceManaged).value / "protobuf"
+    ),
+    // Needed twice: to compile against, and as the source of the standard message types
+    // such as Timestamp that our contracts import.
+    libraryDependencies ++= Seq(
+      "com.google.protobuf" % "protobuf-java" % Versions("jvm.protobuf"),
+      "com.google.protobuf" % "protobuf-java" % Versions("jvm.protobuf") % "protobuf"
+    ),
+    // Generated code is not ours to tidy up, so its warnings are not reported.
+    Compile / javacOptions += "-Xlint:none"
   )
 
 // Pure feature functions. This module must never depend on Spark.

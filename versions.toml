@@ -16,6 +16,8 @@ spark = "4.1.4"
 hadoop = "3.4.2"
 iceberg = "1.11.0"
 kafka = "4.4.0"
+# Must match the Protobuf that Spark ships, for the same reason as Jackson.
+protobuf = "4.33.0"
 # Must match the Jackson that Spark ships. Spark refuses to start next to
 # a newer one.
 jackson = "2.21.2"
