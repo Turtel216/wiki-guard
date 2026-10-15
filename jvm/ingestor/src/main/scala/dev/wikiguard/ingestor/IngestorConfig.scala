@@ -54,10 +54,14 @@ object IngestorConfig {
     } yield IngestorConfig(
       source = source,
       kafkaBootstrapServers = kafka,
-      wikimediaFile = Paths.get(value(env, WikimediaFileKey).getOrElse(DefaultWikimediaFile)),
+      wikimediaFile = wikimediaFile(env),
       metricsPort = port,
       staysUpAfterReplay = staysUp
     )
+
+  /** Where the shared Wikimedia config file is. */
+  def wikimediaFile(env: Map[String, String]): Path =
+    Paths.get(value(env, WikimediaFileKey).getOrElse(DefaultWikimediaFile))
 
   /** There is no default source, so that nothing connects to Wikimedia by accident. */
   private def source(env: Map[String, String]): Either[ConfigError, Source] =
