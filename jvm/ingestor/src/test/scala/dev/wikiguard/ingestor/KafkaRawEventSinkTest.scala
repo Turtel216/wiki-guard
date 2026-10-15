@@ -1,24 +1,17 @@
 package dev.wikiguard.ingestor
-
-import java.nio.charset.StandardCharsets
 import java.time.{Clock, Instant, ZoneOffset}
-import java.util.Optional
 
 import scala.jdk.CollectionConverters._
 
-import org.apache.kafka.clients.consumer.{ConsumerRecord, MockConsumer}
-import org.apache.kafka.clients.consumer.internals.AutoOffsetResetStrategy
+import org.apache.kafka.clients.consumer.MockConsumer
 import org.apache.kafka.clients.producer.{MockProducer, RoundRobinPartitioner}
-import org.apache.kafka.common.{Node, PartitionInfo, TopicPartition}
-import org.apache.kafka.common.header.internals.{RecordHeader, RecordHeaders}
-import org.apache.kafka.common.record.TimestampType
 import org.apache.kafka.common.serialization.StringSerializer
 import org.scalatest.funsuite.AnyFunSuite
 
 /** Uses the in-memory producer and consumer that ship with the Kafka client. */
 class KafkaRawEventSinkTest extends AnyFunSuite {
 
-  import KafkaRawEventSinkTest.Stored
+  import MockRawTopics.Stored
 
   private val Revisions = "wg.raw.revision-create"
   private val Tags = "wg.raw.revision-tags-change"
@@ -38,56 +31,8 @@ class KafkaRawEventSinkTest extends AnyFunSuite {
   private def record(pageId: Option[Long] = Some(7L), eventId: Option[String] = Some("[1]")) =
     RawRecord(Revisions, pageId, eventId, None, SampleEvents.body())
 
-  /** A consumer over two partitions per topic that holds the given records. */
-  private def consumer(stored: Seq[Stored]): MockConsumer[String, String] = {
-    val mock = new MockConsumer[String, String](AutoOffsetResetStrategy.EARLIEST.name)
-    val partitions = for {
-      topic <- Topics.toVector
-      partition <- 0 to 1
-    } yield new TopicPartition(topic, partition)
-    Topics.foreach { topic =>
-      val infos = (0 to 1).map(new PartitionInfo(topic, _, Node.noNode, Array.empty, Array.empty))
-      mock.updatePartitions(topic, infos.asJava)
-    }
-    def ends(partition: TopicPartition): Long = stored
-      .filter(s => s.topic == partition.topic && s.partition == partition.partition)
-      .map(_.offset + 1)
-      .maxOption
-      .getOrElse(0L)
-    mock.updateBeginningOffsets(partitions.map(_ -> Long.box(0L)).toMap.asJava)
-    mock.updateEndOffsets(partitions.map(p => p -> Long.box(ends(p))).toMap.asJava)
-    // Records can only be added to assigned partitions, so they are added on the first poll.
-    mock.schedulePollTask { () =>
-      stored.filter(s =>
-        mock.assignment.contains(new TopicPartition(s.topic, s.partition))
-      ).foreach {
-        s => mock.addRecord(consumerRecord(s))
-      }
-    }
-    mock
-  }
-
-  private def consumerRecord(stored: Stored): ConsumerRecord[String, String] = {
-    val headers = new RecordHeaders()
-    stored.eventId.foreach { id =>
-      headers.add(
-        new RecordHeader(KafkaRawEventSink.EventIdHeader, id.getBytes(StandardCharsets.UTF_8))
-      )
-    }
-    new ConsumerRecord(
-      stored.topic,
-      stored.partition,
-      stored.offset,
-      stored.writtenAt,
-      TimestampType.CREATE_TIME,
-      0,
-      0,
-      "7",
-      stored.body,
-      headers,
-      Optional.empty[Integer]
-    )
-  }
+  private def consumer(stored: Seq[Stored]): MockConsumer[String, String] =
+    MockRawTopics.consumer(Topics, stored)
 
   private def lastEvent(stored: Stored*): Either[SinkError, Option[ResumePoint]] =
     new KafkaRawEventSink(producer(), () => consumer(stored), Topics, clock).lastEvent()
@@ -185,17 +130,4 @@ class KafkaRawEventSinkTest extends AnyFunSuite {
 
     assert(sink.lastEvent().left.exists(_.message.contains("wg.raw.unknown")))
   }
-}
-
-object KafkaRawEventSinkTest {
-
-  /** A stored record as the consumer would return it. */
-  final case class Stored(
-      topic: String,
-      partition: Int,
-      offset: Long,
-      writtenAt: Long,
-      eventId: Option[String],
-      body: String = SampleEvents.body()
-  )
 }
