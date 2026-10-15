@@ -77,7 +77,9 @@ kubectl --context k3d-wikiguard-dev -n platform get pods
 
 The ingestor copies events from one stream connection into the raw Kafka
 topics. It keeps no state of its own: on every connect it reads the last
-record it wrote and resumes right after it. It is configured through
+record it wrote and resumes right after it. If that record is older than
+what upstream still keeps, the lost stretch is published to
+`wg.ops.ingest-gaps.v1` before anything else is stored. It is configured through
 environment variables:
 
 | Variable | Meaning | Default |
