@@ -27,7 +27,7 @@ object IngestorApp {
     for {
       config <- IngestorConfig.fromEnv(env).left.map(_.message)
       wikimedia <- WikimediaConfig.load(config.wikimediaFile).left.map(_.message)
-      topics <- topicsFor(wikimedia).left.map(_.message)
+      topics <- RawTopics.forStreams(wikimedia.stream.names).left.map(_.message)
       source <- source(config.source, wikimedia).left.map(_.message)
       result <- run(config, wikimedia, topics, source).left.map(_.message)
     } yield result
@@ -67,13 +67,6 @@ object IngestorApp {
       metricsServer.close()
     }
   }
-
-  /** Every stream that is asked for must have a raw topic to go to. */
-  private def topicsFor(wikimedia: WikimediaConfig): Either[ConfigError, Map[String, String]] =
-    wikimedia.stream.names.find(name => !RawTopics.ByStream.contains(name)) match {
-      case Some(name) => Left(ConfigError.Invalid("stream.names", s"$name has no raw topic"))
-      case None => Right(RawTopics.ByStream.view.filterKeys(wikimedia.stream.names.contains).toMap)
-    }
 
   private def source(
       choice: IngestorConfig.Source,
