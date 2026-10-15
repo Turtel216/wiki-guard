@@ -20,6 +20,8 @@ final case class IngestorConfig(
 
 object IngestorConfig {
 
+  import EnvVars.{required, value}
+
   sealed trait Source
 
   object Source {
@@ -91,10 +93,4 @@ object IngestorConfig {
         .filter(port => port > 0 && port < 65536)
         .toRight(ConfigError.Invalid(MetricsPortKey, "must be a port number"))
     }
-
-  private def value(env: Map[String, String], key: String): Option[String] =
-    env.get(key).map(_.trim).filter(_.nonEmpty)
-
-  private def required(env: Map[String, String], key: String): Either[ConfigError, String] =
-    value(env, key).toRight(ConfigError.Missing(key))
 }
