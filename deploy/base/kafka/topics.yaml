@@ -25,3 +25,19 @@ spec:
   replicas: 1
   config:
     retention.ms: 604800000
+---
+# Stretches of the stream that were lost for good, published by the
+# ingestor. They are rare and cannot be recreated, so they are kept for
+# thirty days: longer than any other topic, in case nothing copies them
+# into the lake for a while.
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: wg.ops.ingest-gaps.v1
+  labels:
+    strimzi.io/cluster: wikiguard
+spec:
+  partitions: 3
+  replicas: 1
+  config:
+    retention.ms: 2592000000
