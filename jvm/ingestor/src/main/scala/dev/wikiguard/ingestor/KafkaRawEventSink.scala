@@ -9,7 +9,7 @@ import scala.annotation.tailrec
 import scala.jdk.CollectionConverters._
 import scala.util.{Try, Using}
 
-import org.apache.kafka.clients.consumer.{Consumer, ConsumerConfig, ConsumerRecord, KafkaConsumer}
+import org.apache.kafka.clients.consumer.{Consumer, ConsumerRecord, KafkaConsumer}
 import org.apache.kafka.clients.producer.{KafkaProducer, Producer, ProducerConfig, ProducerRecord}
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.serialization.{StringDeserializer, StringSerializer}
@@ -43,6 +43,7 @@ final class KafkaRawEventSink(
     with AutoCloseable {
 
   import KafkaRawEventSink.{EventIdHeader, ReadTimeout}
+  import RawTopicAccess.{eventId, partitionsOf}
 
   // The one piece of state in here: the timestamp of the latest record this process wrote.
   private val lastTimestamp = new AtomicLong(0L)
@@ -91,14 +92,6 @@ final class KafkaRawEventSink(
     poll(consumer, lastOffsets, Vector.empty, System.nanoTime() + ReadTimeout.toNanos)
   }
 
-  private def partitionsOf(consumer: Consumer[String, String], topic: String) = {
-    val partitions = Option(consumer.partitionsFor(topic)).fold(Vector.empty[TopicPartition]) {
-      infos => infos.asScala.toVector.map(info => new TopicPartition(topic, info.partition))
-    }
-    if (partitions.isEmpty) throw new IllegalStateException(s"topic $topic does not exist")
-    partitions
-  }
-
   /** Polls until the last record of every partition has arrived. */
   @tailrec
   private def poll(
@@ -124,11 +117,6 @@ final class KafkaRawEventSink(
       .flatMap(record => eventId(record).map(id => (record, id)))
       .maxByOption { case (record, _) => record.timestamp }
       .map { case (record, id) => ResumePoint(id, eventTime(record)) }
-
-  private def eventId(record: ConsumerRecord[String, String]): Option[String] =
-    Option(record.headers.lastHeader(EventIdHeader))
-      .flatMap(header => Option(header.value))
-      .map(bytes => new String(bytes, StandardCharsets.UTF_8))
 
   /** Falls back to the time of writing for an event that does not carry its own time. */
   private def eventTime(record: ConsumerRecord[String, String]): Instant =
@@ -157,7 +145,7 @@ object KafkaRawEventSink {
       )
     def newConsumer(): Consumer[String, String] =
       new KafkaConsumer(
-        consumerSettings(bootstrapServers),
+        RawTopicAccess.consumerSettings(bootstrapServers, "wikiguard-ingestor-resume"),
         new StringDeserializer,
         new StringDeserializer
       )
@@ -173,15 +161,6 @@ object KafkaRawEventSink {
     // Every write is waited for, so holding records back to batch them would only add delay.
     settings.put(ProducerConfig.LINGER_MS_CONFIG, "0")
     settings.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, "zstd")
-    settings
-  }
-
-  /** The consumer only peeks at fixed offsets, so it joins no group and commits nothing. */
-  private def consumerSettings(bootstrapServers: String): Properties = {
-    val settings = new Properties()
-    settings.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers)
-    settings.put(ConsumerConfig.CLIENT_ID_CONFIG, "wikiguard-ingestor-resume")
-    settings.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false")
     settings
   }
 }
