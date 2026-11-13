@@ -31,6 +31,7 @@ import dev.wikiguard.contracts.v1.{IngestGap => IngestGapMessage}
 import dev.wikiguard.ingestor.{
   Backoff,
   EventRouter,
+  FixtureRecorder,
   FixtureSource,
   IngestError,
   IngestGap,
@@ -39,6 +40,7 @@ import dev.wikiguard.ingestor.{
   KafkaGapRecorder,
   KafkaRawEventSink,
   RawRecord,
+  RawTopicReader,
   ResumePoint,
   SampleEvents,
   StreamEvent
@@ -248,6 +250,39 @@ class KafkaIngestTest extends AnyFunSuite with BeforeAndAfterAll {
     assert(replay(recording(events), topics) == Right(()))
 
     assert(stored(topics).map(eventId) == events.map(_.id))
+  }
+
+  test("a recording of the topics replays as the events that were ingested") {
+    val topics = newTopics()
+    val kept = (1 to 60).map { number =>
+      event(number, if (number % 3 == 0) SampleEvents.TagsChange else SampleEvents.RevisionCreate)
+    }
+    assert(replay(recording(kept), topics) == Right(()))
+    val file = Files.createTempFile("recorded", ".sse")
+    file.toFile.deleteOnExit()
+    val recorder = new FixtureRecorder(RawTopicReader(kafka.getBootstrapServers, topics.all))
+
+    val summary = recorder.record(maxEvents = 45, file)
+
+    assert(summary.map(_.events) == Right(45))
+    val replayed = new FixtureSource(file, speed = 1.0, sleep = _ => ()).connect(None)(_.toVector)
+    assert(replayed == Right(kept.takeRight(45)))
+  }
+
+  test("a recording ingested into empty topics stores the same events again") {
+    val first = newTopics()
+    val second = newTopics()
+    val kept = (1 to 20).map(number => event(number))
+    assert(replay(recording(kept), first) == Right(()))
+    val file = Files.createTempFile("recorded", ".sse")
+    file.toFile.deleteOnExit()
+    val recorder = new FixtureRecorder(RawTopicReader(kafka.getBootstrapServers, first.all))
+    assert(recorder.record(maxEvents = 100, file).isRight)
+
+    assert(replay(file, second) == Right(()))
+
+    assert(stored(second).map(eventId) == kept.map(_.id))
+    assert(stored(second).map(_.value) == kept.map(_.data))
   }
 
   test("a topic that does not exist is an error, not a silent start from nothing") {
