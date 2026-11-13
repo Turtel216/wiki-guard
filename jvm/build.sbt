@@ -115,6 +115,8 @@ lazy val ingestor = (project in file("ingestor"))
   .settings(commonSettings)
   .settings(
     name := "wikiguard-ingestor",
+    // The module also holds the fixture recorder, so the service has to be named.
+    Compile / mainClass := Some("dev.wikiguard.ingestor.IngestorApp"),
     libraryDependencies ++= Seq(kafkaClients, slf4jApi) ++ log4jRuntime ++ prometheus
   )
 
