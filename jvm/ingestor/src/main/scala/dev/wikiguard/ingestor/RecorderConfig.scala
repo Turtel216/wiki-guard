@@ -2,7 +2,7 @@ package dev.wikiguard.ingestor
 
 import java.nio.file.{Path, Paths}
 
-import dev.wikiguard.common.config.ConfigError
+import dev.wikiguard.common.config.{ConfigError, EnvVars}
 
 /**
  * Settings of one run of the fixture recorder, taken from environment variables.

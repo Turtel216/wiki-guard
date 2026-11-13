@@ -1,9 +1,7 @@
-package dev.wikiguard.ingestor
-
-import dev.wikiguard.common.config.ConfigError
+package dev.wikiguard.common.config
 
 /** Reads settings from environment variables. A blank value counts as not set. */
-private[ingestor] object EnvVars {
+object EnvVars {
 
   def value(env: Map[String, String], key: String): Option[String] =
     env.get(key).map(_.trim).filter(_.nonEmpty)
