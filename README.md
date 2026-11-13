@@ -57,6 +57,7 @@ make integration-test   # tests against SeaweedFS and PostgreSQL containers
 make lint               # formatting, lint rules and types
 make fmt                # format and auto-fix
 make lint-deploy        # check the manifests under deploy/
+make record-fixture     # save the newest raw events as a replayable recording
 ```
 
 ## Dev cluster
@@ -99,6 +100,34 @@ in `config/wikimedia.yaml`.
 loads it into the cluster, where it replays a small hand-written sample
 into the raw topics. Run it again to pick up code changes. Pods in the
 `wikiguard` namespace cannot reach anything outside the cluster.
+
+## Fixture recorder
+
+Development and tests replay recordings and never contact Wikimedia. A
+recording is made from the raw Kafka topics, where the ingestor has already
+stored the events, so recording needs no second stream connection:
+
+```sh
+make record-fixture FILE=fixtures/my-recording.sse EVENTS=2000
+```
+
+This starts a short-lived pod next to the ingestor, saves the newest events
+in the order the stream delivered them, and copies the file out. The dev
+cluster is used unless `KUBE_CONTEXT` names another one. The result is
+server-sent events text, the format `WG_FIXTURE_FILE` expects.
+
+A recording holds only what the ingestor kept. Canary events and other
+wikis are dropped before Kafka, so they are not in it.
+
+| Variable | Meaning | Default |
+| --- | --- | --- |
+| `WG_KAFKA_BOOTSTRAP_SERVERS` | Kafka broker address | none, must be set |
+| `WG_RECORD_FILE` | Where to write the recording; an existing file is replaced | none, must be set |
+| `WG_RECORD_MAX_EVENTS` | How many of the newest events to record, up to 50000 | `1000` |
+| `WG_WIKIMEDIA_CONFIG` | Path to the Wikimedia config file | `config/wikimedia.yaml` |
+
+Recorded events are real edits and name their editors. They are public, but
+keep committed recordings small.
 
 Setting up the real server is described in
 [docs/runbooks/server-bootstrap.md](docs/runbooks/server-bootstrap.md).
