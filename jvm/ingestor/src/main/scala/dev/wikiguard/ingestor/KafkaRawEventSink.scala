@@ -14,6 +14,8 @@ import org.apache.kafka.clients.producer.{KafkaProducer, Producer, ProducerConfi
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.serialization.{StringDeserializer, StringSerializer}
 
+import dev.wikiguard.common.kafka.RawTopicNames
+
 /**
  * Stores events in the raw Kafka topics, keyed by page id.
  *
@@ -129,7 +131,7 @@ final class KafkaRawEventSink(
 object KafkaRawEventSink {
 
   /** Name of the record header that holds the stream position of the event. */
-  val EventIdHeader: String = "wg-stream-event-id"
+  val EventIdHeader: String = RawTopicNames.EventIdHeader
 
   private val ReadTimeout = Duration.ofSeconds(30)
 
