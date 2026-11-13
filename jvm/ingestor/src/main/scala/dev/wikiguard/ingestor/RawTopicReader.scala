@@ -40,11 +40,7 @@ final class RawTopicReader(
         consumer.assign(ranges.keySet.asJava)
         ranges.foreach { case (partition, range) => consumer.seek(partition, range.from) }
         val deadline = System.nanoTime() + patience.toNanos
-        // The sink never repeats a timestamp, so sorting by it gives back the stream order.
-        read(consumer, ranges, Vector.empty, deadline)
-          .sortBy(_.timestamp)
-          .takeRight(count)
-          .flatMap(toEvent)
+        read(consumer, ranges, count, Vector.empty, deadline).flatMap(toEvent)
       }
     }.toEither.left.map(error => RecordingError.ReadFailed(error.toString))
 
@@ -65,11 +61,17 @@ final class RawTopicReader(
       .toMap
   }
 
-  /** Polls until every partition has been read up to the end it had when the read began. */
+  /**
+   * Polls until every partition has been read up to the end it had when the read began.
+   *
+   * The sink never repeats a timestamp, so sorting by it gives back the stream order. Only the
+   * newest `count` records are carried from one poll to the next, which keeps memory flat.
+   */
   @tailrec
   private def read(
       consumer: Consumer[String, String],
       ranges: Map[TopicPartition, Range],
+      count: Int,
       found: Vector[ConsumerRecord[String, String]],
       deadline: Long
   ): Vector[ConsumerRecord[String, String]] =
@@ -86,7 +88,8 @@ final class RawTopicReader(
       }
       // Any progress buys more time, so a long read is fine as long as it keeps moving.
       val nextDeadline = if (batch.isEmpty) deadline else System.nanoTime() + patience.toNanos
-      read(consumer, ranges, found ++ batch, nextDeadline)
+      val newest = (found ++ batch).sortBy(_.timestamp).takeRight(count)
+      read(consumer, ranges, count, newest, nextDeadline)
     }
 
   private def toEvent(record: ConsumerRecord[String, String]): Option[StreamEvent] =

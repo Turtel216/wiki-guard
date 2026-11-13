@@ -28,7 +28,7 @@ object RecorderConfig {
 
   private val DefaultMaxEvents = 1000
 
-  // Up to this many records are held in memory for every partition, so it cannot be endless.
+  // The whole recording is held in memory before it is written, so it cannot be endless.
   private val MostEvents = 50000
 
   def fromEnv(env: Map[String, String]): Either[ConfigError, RecorderConfig] =
