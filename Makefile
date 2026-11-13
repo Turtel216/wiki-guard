@@ -40,6 +40,10 @@ dev-up: ## Start the local dev cluster (needs Docker, k3d and kubectl)
 dev-down: ## Delete the local dev cluster and its data
 	scripts/dev-down.sh
 
+.PHONY: record-fixture
+record-fixture: ## Save the newest raw events as a recording: FILE=fixtures/name.sse [EVENTS=1000]
+	scripts/record-fixture.sh $(FILE) $(EVENTS)
+
 .PHONY: lint-deploy
 lint-deploy: ## Check the manifests under deploy/ (needs kubectl and kubeconform)
 	scripts/validate-deploy.sh
