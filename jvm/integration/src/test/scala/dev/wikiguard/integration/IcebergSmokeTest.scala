@@ -14,8 +14,10 @@ import org.testcontainers.utility.DockerImageName
  */
 class IcebergSmokeTest extends AnyFunSuite with BeforeAndAfterAll {
 
-  private val Bucket = "wg-lake"
-  private val Namespace = "lake.smoke"
+  import LakeSpark.requiredEnv
+
+  private val Bucket = "wg-lake-smoke"
+  private val Namespace = s"${LakeSpark.Catalog}.smoke"
 
   private val seaweedFs = SeaweedFsContainer(requiredEnv("WG_SEAWEEDFS_IMAGE"))
 
@@ -23,36 +25,8 @@ class IcebergSmokeTest extends AnyFunSuite with BeforeAndAfterAll {
     new PostgreSQLContainer(DockerImageName.parse(requiredEnv("WG_POSTGRES_IMAGE")))
       .withDatabaseName("iceberg")
 
-  private lazy val spark: SparkSession = SparkSession
-    .builder()
-    .master("local[2]")
-    .appName("iceberg-smoke-test")
-    .config("spark.ui.enabled", "false")
-    .config("spark.sql.shuffle.partitions", "1")
-    .config("spark.sql.session.timeZone", "UTC")
-    .config(
-      "spark.sql.extensions",
-      "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions"
-    )
-    .config("spark.sql.catalog.lake", "org.apache.iceberg.spark.SparkCatalog")
-    .config("spark.sql.catalog.lake.type", "jdbc")
-    .config("spark.sql.catalog.lake.uri", postgres.getJdbcUrl)
-    .config("spark.sql.catalog.lake.jdbc.user", postgres.getUsername)
-    .config("spark.sql.catalog.lake.jdbc.password", postgres.getPassword)
-    .config("spark.sql.catalog.lake.jdbc.schema-version", "V1")
-    .config("spark.sql.catalog.lake.warehouse", s"s3a://$Bucket/warehouse")
-    .config("spark.sql.catalog.lake.io-impl", "org.apache.iceberg.hadoop.HadoopFileIO")
-    .config("spark.hadoop.fs.s3a.endpoint", seaweedFs.endpoint)
-    .config("spark.hadoop.fs.s3a.endpoint.region", "us-east-1")
-    .config("spark.hadoop.fs.s3a.path.style.access", "true")
-    .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "false")
-    .config("spark.hadoop.fs.s3a.access.key", SeaweedFsContainer.AccessKey)
-    .config("spark.hadoop.fs.s3a.secret.key", SeaweedFsContainer.SecretKey)
-    .config(
-      "spark.hadoop.fs.s3a.aws.credentials.provider",
-      "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider"
-    )
-    .getOrCreate()
+  private lazy val spark: SparkSession =
+    LakeSpark.session("iceberg-smoke-test", postgres, seaweedFs, Bucket)
 
   private val firstDay = Vector(
     LakeEvent("enwiki", 1L, Instant.parse("2026-11-01T10:00:00Z"), 0.10),
@@ -162,7 +136,4 @@ class IcebergSmokeTest extends AnyFunSuite with BeforeAndAfterAll {
     import spark.implicits._
     events.toDS().writeTo(table).append()
   }
-
-  private def requiredEnv(name: String): String =
-    sys.env.getOrElse(name, sys.error(s"$name is not set; run this test through sbt"))
 }
