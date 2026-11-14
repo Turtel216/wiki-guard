@@ -132,7 +132,8 @@ lazy val stream = (project in file("stream"))
   .settings(commonSettings)
   .settings(
     name := "wikiguard-stream",
-    libraryDependencies ++= Seq(sparkSql, xgboost4j)
+    libraryDependencies ++= Seq(sparkSql, xgboost4j),
+    Test / javaOptions ++= sparkJavaOptions
   )
 
 // Backfill, label finalization, evaluation and table maintenance.
