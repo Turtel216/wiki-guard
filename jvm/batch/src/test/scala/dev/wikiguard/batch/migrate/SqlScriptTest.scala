@@ -8,7 +8,8 @@ class SqlScriptTest extends AnyFunSuite {
     val text = "CREATE NAMESPACE a;\n\nCREATE TABLE a.b (\n  id BIGINT\n);\n"
 
     assert(
-      SqlScript.statements(text) == Vector("CREATE NAMESPACE a", "CREATE TABLE a.b (\n  id BIGINT\n)")
+      SqlScript.statements(text) ==
+        Vector("CREATE NAMESPACE a", "CREATE TABLE a.b (\n  id BIGINT\n)")
     )
   }
 

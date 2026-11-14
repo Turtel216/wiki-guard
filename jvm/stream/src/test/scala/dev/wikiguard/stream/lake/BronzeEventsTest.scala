@@ -55,8 +55,8 @@ class BronzeEventsTest extends AnyFunSuite with SparkTestSession {
   }
 
   test("the body is stored byte for byte, whatever is in it") {
-    val odd =
-      """ {"meta" : {"stream":"s","dt":"2026-11-01T10:00:00Z"}, "comment":"caf\u00e9 \n"} """
+    val accented = "caf\u00e9"
+    val odd = s""" {"meta" : {"stream":"s","dt":"2026-11-01T10:00:00Z"}, "comment":"$accented"} """
 
     assert(bronze(record(body = Some(odd))).map(_.json) == Vector(odd))
   }
