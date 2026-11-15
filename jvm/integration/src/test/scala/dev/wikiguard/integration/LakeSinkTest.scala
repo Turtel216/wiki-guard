@@ -90,7 +90,8 @@ class LakeSinkTest extends AnyFunSuite with BeforeAndAfterAll {
       checkpointRoot = s"s3a://$CheckpointBucket/${topics.revisions}",
       catalog = LakeSpark.Catalog,
       lakeSinkTrigger = 1.second,
-      maxOffsetsPerTrigger = 25L
+      maxOffsetsPerTrigger = 25L,
+      metricsPort = 9400
     )
 
   private def event(number: Int, topics: Topics, day: String = "2026-11-01"): RawRecord = {

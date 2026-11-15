@@ -15,7 +15,7 @@ class StreamConfigTest extends AnyFunSuite {
     val config = StreamConfig.fromEnv(minimal)
 
     assert(config ==
-      Right(StreamConfig("kafka:9092", "s3a://wg-checkpoints", "lake", 60.seconds, 20000L)))
+      Right(StreamConfig("kafka:9092", "s3a://wg-checkpoints", "lake", 60.seconds, 20000L, 9400)))
   }
 
   test("every query gets a checkpoint directory of its own") {
@@ -34,6 +34,17 @@ class StreamConfigTest extends AnyFunSuite {
 
     assert(config.map(_.lakeSinkTrigger) == Right(5.seconds))
     assert(config.map(_.maxOffsetsPerTrigger) == Right(500L))
+  }
+
+  test("the metrics port can be changed and must be a port number") {
+    val moved = StreamConfig.fromEnv(minimal + (StreamConfig.MetricsPortKey -> "9500"))
+    assert(moved.map(_.metricsPort) == Right(9500))
+
+    Seq("0", "65536", "http").foreach { raw =>
+      val config = StreamConfig.fromEnv(minimal + (StreamConfig.MetricsPortKey -> raw))
+
+      assert(config.left.exists(_.message.contains(StreamConfig.MetricsPortKey)), raw)
+    }
   }
 
   test("a missing setting is reported by its key") {

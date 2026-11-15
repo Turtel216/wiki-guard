@@ -19,13 +19,16 @@ import dev.wikiguard.common.lake.LakeCatalog
  *   how often new records are appended to the lake
  * @param maxOffsetsPerTrigger
  *   the most Kafka records one batch may take, so that catching up stays bounded
+ * @param metricsPort
+ *   the port on which the driver serves its metrics
  */
 final case class StreamConfig(
     kafkaBootstrapServers: String,
     checkpointRoot: String,
     catalog: String,
     lakeSinkTrigger: FiniteDuration,
-    maxOffsetsPerTrigger: Long
+    maxOffsetsPerTrigger: Long,
+    metricsPort: Int
 ) {
 
   def checkpointOf(query: String): String = s"$checkpointRoot/$query"
@@ -39,9 +42,12 @@ object StreamConfig {
   val CheckpointRootKey: String = "WG_CHECKPOINT_ROOT"
   val LakeSinkTriggerKey: String = "WG_LAKE_SINK_TRIGGER_SECONDS"
   val MaxOffsetsKey: String = "WG_MAX_OFFSETS_PER_TRIGGER"
+  val MetricsPortKey: String = "WG_METRICS_PORT"
 
   private val DefaultLakeSinkTriggerSeconds = 60L
   private val DefaultMaxOffsets = 20000L
+  private val DefaultMetricsPort = 9400L
+  private val HighestPort = 65535L
 
   def fromEnv(env: Map[String, String]): Either[ConfigError, StreamConfig] =
     for {
@@ -50,12 +56,18 @@ object StreamConfig {
       catalog <- LakeCatalog.fromEnv(env)
       triggerSeconds <- positive(env, LakeSinkTriggerKey, DefaultLakeSinkTriggerSeconds)
       maxOffsets <- positive(env, MaxOffsetsKey, DefaultMaxOffsets)
+      metricsPort <- positive(env, MetricsPortKey, DefaultMetricsPort)
+        .filterOrElse(
+          _ <= HighestPort,
+          ConfigError.Invalid(MetricsPortKey, "must be a port number")
+        )
     } yield StreamConfig(
       kafkaBootstrapServers = kafka,
       checkpointRoot = checkpointRoot.stripSuffix("/"),
       catalog = catalog,
       lakeSinkTrigger = triggerSeconds.seconds,
-      maxOffsetsPerTrigger = maxOffsets
+      maxOffsetsPerTrigger = maxOffsets,
+      metricsPort = metricsPort.toInt
     )
 
   private def positive(
