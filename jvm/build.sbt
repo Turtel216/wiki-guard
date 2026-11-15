@@ -148,13 +148,14 @@ lazy val batch = (project in file("batch"))
 // Tests that need Docker. This project is left out of the root aggregate on purpose,
 // so a plain `sbt test` never starts containers. Run it with `sbt integration/test`.
 lazy val integration = (project in file("integration"))
-  .dependsOn(ingestor % "test->test")
+  .dependsOn(ingestor % "test->test", stream % "test->test", batch % Test)
   .settings(commonSettings)
   .settings(
     name := "wikiguard-integration",
     publish / skip := true,
     libraryDependencies ++= Seq(
       "org.apache.spark" %% "spark-sql" % Versions("jvm.spark") % Test,
+      "org.apache.spark" %% "spark-sql-kafka-0-10" % Versions("jvm.spark") % Test,
       "org.apache.iceberg" %% "iceberg-spark-runtime-4.1" % Versions("jvm.iceberg") % Test,
       "org.apache.hadoop" % "hadoop-aws" % Versions("jvm.hadoop") % Test,
       "org.postgresql" % "postgresql" % Versions("jvm.postgres_jdbc") % Test,
@@ -166,6 +167,9 @@ lazy val integration = (project in file("integration"))
     Test / envVars ++= Map(
       "WG_SEAWEEDFS_IMAGE" -> Versions("images.seaweedfs"),
       "WG_POSTGRES_IMAGE" -> Versions("images.postgres"),
-      "WG_KAFKA_IMAGE" -> Versions("images.kafka")
+      "WG_KAFKA_IMAGE" -> Versions("images.kafka"),
+      // The tests create the lake tables from the same files production does.
+      "WG_DDL_DIR" ->
+        (baseDirectory.value / ".." / ".." / "sql" / "ddl" / "iceberg").getCanonicalPath
     )
   )
