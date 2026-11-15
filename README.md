@@ -4,8 +4,8 @@ WikiGuard scores every human edit to English Wikipedia articles for revert
 risk within seconds, then grades itself against the community's reverts.
 It is read-only and never edits Wikipedia.
 
-Status: early. The ingestor exists but is not deployed, and nothing connects
-to Wikimedia yet.
+Status: early. The ingestor and the query that copies raw events into the
+lake exist but are not deployed, and nothing connects to Wikimedia yet.
 
 ## A note on scale
 
@@ -53,7 +53,7 @@ docs/        ADRs and runbooks
 ```sh
 make help               # list targets
 make test               # Scala and Python unit tests
-make integration-test   # tests against SeaweedFS and PostgreSQL containers
+make integration-test   # tests against Kafka, SeaweedFS and PostgreSQL containers
 make lint               # formatting, lint rules and types
 make fmt                # format and auto-fix
 make lint-deploy        # check the manifests under deploy/
@@ -128,6 +128,41 @@ wikis are dropped before Kafka, so they are not in it.
 
 Recorded events are real edits and name their editors. They are public, but
 keep committed recordings small.
+
+## Lake sink
+
+`lake-sink` is a query of the Spark streaming application. It copies the
+raw Kafka topics into the Iceberg table `bronze.events_raw`, one row per
+event, so the events outlive the seven days Kafka keeps them. The body is
+stored untouched, next to the wiki, the stream name, the stream position,
+the event time and the place in Kafka it was read from. The table is
+partitioned by the day of the event.
+
+A batch is committed about once a minute. After a crash the unfinished
+batch is run again and the table takes it only once, so rows are neither
+lost nor doubled as long as the checkpoint survives. Topic, partition and
+offset identify a row if a checkpoint ever has to be thrown away.
+
+The application is not deployed yet. It is configured through environment
+variables; how Spark reaches the catalog and the object store is ordinary
+Spark configuration.
+
+| Variable | Meaning | Default |
+| --- | --- | --- |
+| `WG_KAFKA_BOOTSTRAP_SERVERS` | Kafka broker address | none, must be set |
+| `WG_CHECKPOINT_ROOT` | Where the queries keep their checkpoints, such as `s3a://wg-checkpoints` | none, must be set |
+| `WG_LAKE_CATALOG` | Name of the Iceberg catalog in the Spark configuration | `lake` |
+| `WG_LAKE_SINK_TRIGGER_SECONDS` | How often a batch is appended to the lake | `60` |
+| `WG_MAX_OFFSETS_PER_TRIGGER` | The most Kafka records one batch may take | `20000` |
+
+## Lake tables
+
+The tables are defined in `sql/ddl/iceberg`. The Spark job
+`dev.wikiguard.batch.migrate.MigrateLake` runs every file there in the
+order of the file names, against the catalog named by `WG_LAKE_CATALOG`
+and the directory named by `WG_DDL_DIR`. Nothing records which files have
+run, so every statement must be safe to run again, for example
+`CREATE TABLE IF NOT EXISTS`. Tables are never changed by hand.
 
 Setting up the real server is described in
 [docs/runbooks/server-bootstrap.md](docs/runbooks/server-bootstrap.md).
