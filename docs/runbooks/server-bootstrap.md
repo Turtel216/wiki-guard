@@ -66,11 +66,16 @@ Flux pushes a commit with its own manifests to
 ```sh
 flux get kustomizations
 kubectl -n platform get pods,kafka,job
+kubectl -n monitoring get pods
 ```
 
-Expected: the `operators`, `secrets` and `platform` kustomizations are
-ready, the Kafka resource is ready, the `seaweedfs-buckets` job has
-completed, and the `postgres` and `seaweedfs` pods are running.
+Expected: the `operators`, `secrets`, `platform` and `monitoring`
+kustomizations are ready, the Kafka resource is ready, the
+`seaweedfs-buckets` job has completed, and the `postgres`, `seaweedfs`,
+`prometheus` and `grafana` pods are running.
+
+Grafana answers at `http://<server LAN address>/` and opens on the
+pipeline dashboard. Anyone on the LAN can look; nobody can log in.
 
 ## When something is stuck
 

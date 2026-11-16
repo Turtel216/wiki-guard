@@ -63,7 +63,7 @@ make record-fixture     # save the newest raw events as a replayable recording
 ## Dev cluster
 
 ```sh
-make dev-up     # k3s in Docker with Kafka, SeaweedFS, PostgreSQL and the ingestor
+make dev-up     # k3s in Docker with Kafka, SeaweedFS, PostgreSQL, the ingestor and the dashboards
 make dev-down   # delete it again
 ```
 
@@ -154,6 +154,46 @@ Spark configuration.
 | `WG_LAKE_CATALOG` | Name of the Iceberg catalog in the Spark configuration | `lake` |
 | `WG_LAKE_SINK_TRIGGER_SECONDS` | How often a batch is appended to the lake | `60` |
 | `WG_MAX_OFFSETS_PER_TRIGGER` | The most Kafka records one batch may take | `20000` |
+| `WG_METRICS_PORT` | Port on which the driver serves `/metrics` | `9400` |
+
+## Dashboards and metrics
+
+Prometheus collects the metrics and Grafana shows them. Both run in the
+`monitoring` namespace from plain manifests under `deploy/base`.
+
+Grafana is a read-only viewer. Its data source and its dashboards come
+from Git, nobody can log in, and it keeps nothing across restarts. A
+dashboard is a JSON file in `dashboards/`; to change one, edit the file.
+In the dev cluster it is reached through a port-forward:
+
+```sh
+kubectl --context k3d-wikiguard-dev -n monitoring port-forward service/grafana 3000:3000
+```
+
+Then open <http://localhost:3000>. On the server Grafana is served on the
+LAN through the ingress that comes with k3s.
+
+So far there is one dashboard, **Pipeline health**: how long ago the last
+event was stored, what the ingestor wrote and dropped, how far each
+streaming query is behind Kafka, and how much memory every pod uses.
+
+Prometheus keeps seven days. It collects from every pod in the `wikiguard`
+and `platform` namespaces that has a container port named `metrics`, so a
+new service only has to name its port. Memory and CPU per container come
+from the kubelets. All our own metrics start with `wg_`.
+
+The ingestor reports under `wg_ingestor_`. The streaming application
+listens to the progress of its queries and reports, per query:
+
+| Metric | Meaning |
+| --- | --- |
+| `wg_stream_batches_total` | Batches finished |
+| `wg_stream_input_rows_total` | Records read from the sources |
+| `wg_stream_batch_duration_seconds` | How long the latest batch took |
+| `wg_stream_source_lag_records` | Records waiting in each Kafka topic when the latest batch stopped reading |
+| `wg_stream_last_progress_timestamp_seconds` | When the query last finished a batch or found nothing to do |
+
+The streaming application is not deployed yet, so its panels stay empty.
 
 ## Lake tables
 
