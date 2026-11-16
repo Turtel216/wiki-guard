@@ -1,0 +1,8 @@
+# Packs the dashboards into the ConfigMap that Grafana loads them from.
+# A new dashboard is a new file here and a new line below.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+configMapGenerator:
+  - name: grafana-dashboards
+    files:
+      - pipeline-health.json
