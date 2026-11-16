@@ -1,0 +1,8 @@
+# Prometheus and Grafana, the same as in production. Grafana is reached
+# through a port-forward, because the dev cluster has no ingress.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: monitoring
+resources:
+  - ../../../base/prometheus
+  - ../../../base/grafana

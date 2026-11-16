@@ -43,6 +43,8 @@ check_pin platform.kafka_broker deploy/base/kafka/kafka.yaml
 check_pin images.seaweedfs deploy/base/seaweedfs/statefulset.yaml
 check_pin images.seaweedfs deploy/base/seaweedfs/buckets-job.yaml
 check_pin images.postgres deploy/base/postgres/statefulset.yaml
+check_pin images.prometheus deploy/base/prometheus/statefulset.yaml
+check_pin images.grafana deploy/base/grafana/deployment.yaml
 check_pin images.jre jvm/ingestor/Dockerfile
 
 if [ "$failed" -ne 0 ]; then
