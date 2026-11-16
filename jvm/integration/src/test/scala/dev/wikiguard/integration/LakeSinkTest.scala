@@ -1,7 +1,7 @@
 package dev.wikiguard.integration
 
 import java.nio.file.Paths
-import java.time.Instant
+import java.time.{Clock, Instant}
 import java.util.Properties
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -9,11 +9,14 @@ import scala.concurrent.duration.DurationInt
 import scala.jdk.CollectionConverters._
 import scala.util.Using
 
+import io.prometheus.metrics.model.registry.PrometheusRegistry
 import org.apache.hadoop.fs.Path
 import org.apache.kafka.clients.admin.{Admin, NewTopic}
 import org.apache.spark.sql.{functions => F, SparkSession}
 import org.scalatest.BeforeAndAfterAll
+import org.scalatest.concurrent.Eventually
 import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.time.{Millis, Seconds, Span}
 import org.testcontainers.kafka.KafkaContainer
 import org.testcontainers.postgresql.PostgreSQLContainer
 import org.testcontainers.utility.DockerImageName
@@ -23,12 +26,13 @@ import dev.wikiguard.common.lake.LakeTables
 import dev.wikiguard.ingestor.{KafkaRawEventSink, RawRecord, SampleEvents}
 import dev.wikiguard.stream.StreamConfig
 import dev.wikiguard.stream.lake.{BronzeCols, BronzeRow, LakeSink}
+import dev.wikiguard.stream.metrics.{MetricsListener, MetricValues, StreamMetrics}
 
 /**
  * Runs the lake-sink query against a real broker, object store and catalog. The events are written
  * the way the ingestor writes them, and the table is created from the DDL files.
  */
-class LakeSinkTest extends AnyFunSuite with BeforeAndAfterAll {
+class LakeSinkTest extends AnyFunSuite with BeforeAndAfterAll with Eventually {
 
   import LakeSinkTest.Topics
   import LakeSpark.requiredEnv
@@ -183,6 +187,30 @@ class LakeSinkTest extends AnyFunSuite with BeforeAndAfterAll {
 
     assert(readAgain == 10, "the batch should have been run a second time")
     assert(rows(topics).size == 10)
+  }
+
+  test("the query reports what it read and how far behind each topic it is") {
+    val topics = newTopics()
+    // Three batches of at most 25 records, so the first ones end with records still waiting.
+    ingest(topics, (1 to 60).map(number => event(number, topics)))
+    val registry = new PrometheusRegistry
+    val listener = new MetricsListener(new StreamMetrics(registry), _ => None, Clock.systemUTC())
+    val query = "query" -> LakeSink.QueryName
+    def lag(topic: String): Option[Double] =
+      MetricValues.value(registry, "wg_stream_source_lag_records", query, "topic" -> topic)
+
+    spark.streams.addListener(listener)
+    try {
+      copyToLake(topics)
+      // Spark hands events to listeners on a thread of its own, a moment after a batch ends.
+      eventually(timeout(Span(20, Seconds)), interval(Span(100, Millis))) {
+        assert(MetricValues.value(registry, "wg_stream_input_rows", query).contains(60.0))
+      }
+    } finally spark.streams.removeListener(listener)
+
+    assert(MetricValues.value(registry, "wg_stream_batches", query).exists(_ >= 3.0))
+    assert(lag(topics.revisions).contains(0.0))
+    assert(lag(topics.tags).contains(0.0))
   }
 
   test("rows are stored as Parquet files, one partition per day of the event") {
