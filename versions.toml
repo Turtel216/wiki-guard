@@ -59,3 +59,5 @@ postgres = "postgres:18.7-alpine"
 jre = "eclipse-temurin:21.0.13_9-jre-noble"
 # The broker for the integration tests. Keep in step with platform.kafka_broker.
 kafka = "apache/kafka:4.3.2"
+prometheus = "prom/prometheus:v3.16.0"
+grafana = "grafana/grafana:13.3.1"
