@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Bring up the local dev cluster: k3s inside Docker, the Flux controllers,
-# then the dev overlay and our own images from the working tree. Safe to
-# run again.
+# then the dev overlay, our own images from the working tree, and the
+# dashboards. Safe to run again.
 #
 # Every kubectl call names the dev context, so this can never touch the
 # home server even when that is the current context.
@@ -59,7 +59,14 @@ kc apply -k "$OVERLAY/wikiguard"
 kc -n wikiguard rollout restart deployment/ingestor
 kc -n wikiguard rollout status deployment/ingestor --timeout=5m
 
+echo "== installing Prometheus and Grafana"
+kc apply -k "$OVERLAY/monitoring"
+kc -n monitoring rollout status statefulset/prometheus --timeout=5m
+kc -n monitoring rollout status deployment/grafana --timeout=5m
+
 echo
 echo "The dev cluster is up. Look around with:"
 echo "  kubectl --context $CONTEXT -n platform get pods"
 echo "  kubectl --context $CONTEXT -n wikiguard logs deployment/ingestor"
+echo "The dashboards are at http://localhost:3000 while this runs:"
+echo "  kubectl --context $CONTEXT -n monitoring port-forward service/grafana 3000:3000"
