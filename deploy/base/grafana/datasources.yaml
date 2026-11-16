@@ -1,0 +1,13 @@
+# Where Grafana gets its data. The dashboards refer to a source by its uid.
+apiVersion: 1
+datasources:
+  - name: Prometheus
+    uid: prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus.monitoring:9090
+    isDefault: true
+    editable: false
+    jsonData:
+      # How often Prometheus collects. Grafana sizes its rate windows by it.
+      timeInterval: 15s

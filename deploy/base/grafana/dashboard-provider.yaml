@@ -1,0 +1,11 @@
+# Loads every dashboard file in the directory below. The files come from
+# the dashboards directory of the repository.
+apiVersion: 1
+providers:
+  - name: wikiguard
+    folder: WikiGuard
+    type: file
+    disableDeletion: true
+    allowUiUpdates: false
+    options:
+      path: /etc/grafana/dashboards
