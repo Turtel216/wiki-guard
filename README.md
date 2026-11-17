@@ -101,10 +101,15 @@ The database and object store credentials are random, created on the first
 run and kept only in the cluster. Grafana is at <http://localhost:3000> on
 the desktop; set `GRAFANA_PORT` on the first run to use another port.
 
-The cluster can be stopped and started again, and the desktop can be
-switched off. Docker starts the cluster again after a reboot, as long as
-the Docker service itself starts at boot (`systemctl enable docker`). The
-ingestor then catches up from where it stopped, as long as it was off for less
+The cluster only runs when it is asked to. It does not start with Docker
+or after a reboot; open and close it by hand:
+
+```sh
+make desktop-start   # open it again; the ingestor catches up from where it stopped
+make desktop-stop    # close it; everything it collected is kept
+```
+
+Nothing is lost while it is closed, as long as it stays closed for less
 than the seven days upstream keeps. `k3d cluster delete wikiguard-desktop`
 throws away everything it collected. Running it next to the dev cluster
 leaves little memory for anything else, so stop one of them first:
