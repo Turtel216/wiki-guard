@@ -40,6 +40,10 @@ dev-up: ## Start the local dev cluster (needs Docker, k3d and kubectl)
 dev-down: ## Delete the local dev cluster and its data
 	scripts/dev-down.sh
 
+.PHONY: desktop-up
+desktop-up: ## Start the desktop cluster, which reads the live stream (needs Docker, k3d and kubectl)
+	scripts/desktop-up.sh
+
 .PHONY: record-fixture
 record-fixture: ## Save the newest raw events as a recording: FILE=fixtures/name.sse [EVENTS=1000]
 	scripts/record-fixture.sh $(FILE) $(EVENTS)
