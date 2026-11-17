@@ -1,0 +1,6 @@
+# Grafana is served through the ingress, which "make desktop-up" maps to a
+# port on the desktop itself.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../prod/monitoring

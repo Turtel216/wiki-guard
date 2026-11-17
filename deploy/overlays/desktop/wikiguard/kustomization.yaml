@@ -1,0 +1,10 @@
+# The production services, connected to the live Wikimedia stream, but run
+# from an image built on the desktop instead of one published by CI.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../prod/wikiguard
+images:
+  # Built from the working tree and loaded into the cluster by "make desktop-up".
+  - name: ghcr.io/turtel216/wikiguard-ingestor
+    newTag: desktop
