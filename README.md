@@ -4,8 +4,9 @@ WikiGuard scores every human edit to English Wikipedia articles for revert
 risk within seconds, then grades itself against the community's reverts.
 It is read-only and never edits Wikipedia.
 
-Status: early. The ingestor and the query that copies raw events into the
-lake exist but are not deployed, and nothing connects to Wikimedia yet.
+Status: early. The ingestor reads the live stream in the desktop cluster
+only. The query that copies raw events into the lake exists but is not
+deployed yet.
 
 ## A note on scale
 
@@ -74,6 +75,44 @@ through the `k3d-wikiguard-dev` kubectl context:
 kubectl --context k3d-wikiguard-dev -n platform get pods
 ```
 
+## Desktop cluster
+
+While the home server is out of service, the desktop runs the server's
+setup in a k3d cluster of its own. It is kept apart from the dev cluster
+on purpose: its ingestor connects to the live Wikimedia stream, and the dev
+cluster must never do that.
+
+```sh
+make desktop-up   # k3s in Docker with the production overlays and a locally built ingestor
+```
+
+The ingestor image is built from the working tree and tagged `desktop`.
+The commit it was built from is recorded on the deployment:
+
+```sh
+kubectl --context k3d-wikiguard-desktop -n wikiguard get deployment ingestor \
+  -o jsonpath='{.metadata.annotations.wikiguard\.dev/commit}'
+```
+
+Run `make desktop-up` again to deploy a code change. The ingestor restarts
+and resumes right after the last event it stored.
+
+The database and object store credentials are random, created on the first
+run and kept only in the cluster. Grafana is at <http://localhost:3000> on
+the desktop; set `GRAFANA_PORT` on the first run to use another port.
+
+The cluster can be stopped and started again, and the desktop can be
+switched off. Docker starts the cluster again after a reboot, as long as
+the Docker service itself starts at boot (`systemctl enable docker`). The
+ingestor then catches up from where it stopped, as long as it was off for less
+than the seven days upstream keeps. `k3d cluster delete wikiguard-desktop`
+throws away everything it collected. Running it next to the dev cluster
+leaves little memory for anything else, so stop one of them first:
+
+```sh
+k3d cluster stop wikiguard-dev
+```
+
 ## Ingestor
 
 The ingestor copies events from one stream connection into the raw Kafka
@@ -113,7 +152,8 @@ make record-fixture FILE=fixtures/my-recording.sse EVENTS=2000
 
 This starts a short-lived pod next to the ingestor, saves the newest events
 in the order the stream delivered them, and copies the file out. The dev
-cluster is used unless `KUBE_CONTEXT` names another one. The result is
+cluster is used unless `KUBE_CONTEXT` names another one, such as
+`k3d-wikiguard-desktop` for a recording of live events. The result is
 server-sent events text, the format `WG_FIXTURE_FILE` expects.
 
 A recording holds only what the ingestor kept. Canary events and other

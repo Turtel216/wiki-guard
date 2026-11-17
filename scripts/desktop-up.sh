@@ -5,7 +5,8 @@
 #
 # Safe to run again. That rebuilds the ingestor from the working tree and
 # restarts it, and it resumes right after the last event it stored. After a
-# reboot nothing needs to be run: Docker starts the cluster again.
+# reboot nothing needs to be run: Docker starts the cluster again, if the
+# Docker service itself starts at boot.
 set -euo pipefail
 
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
