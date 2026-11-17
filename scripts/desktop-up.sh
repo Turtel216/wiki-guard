@@ -4,9 +4,11 @@
 # its ingestor connects to the live Wikimedia stream.
 #
 # Safe to run again. That rebuilds the ingestor from the working tree and
-# restarts it, and it resumes right after the last event it stored. After a
-# reboot nothing needs to be run: Docker starts the cluster again, if the
-# Docker service itself starts at boot.
+# restarts it, and it resumes right after the last event it stored.
+#
+# The cluster only runs when asked to. It does not come back by itself
+# after a reboot; "make desktop-start" and "make desktop-stop" open and
+# close it.
 set -euo pipefail
 
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
@@ -43,6 +45,9 @@ fi
 
 # Grafana is served through the ingress, on this machine only.
 start_cluster --port "127.0.0.1:$GRAFANA_PORT:80@loadbalancer"
+# k3d asks Docker to restart its containers, which would start the cluster
+# with every boot. This one is started by hand.
+docker update --restart=no $(docker ps -aq --filter "label=k3d.cluster=$CLUSTER") >/dev/null
 install_flux
 install_operators
 
@@ -63,3 +68,4 @@ echo
 echo "The desktop cluster is up and the ingestor reads the live stream. Check it with:"
 echo "  kubectl --context $CONTEXT -n wikiguard logs -f deployment/ingestor"
 echo "The dashboards are at http://localhost:$GRAFANA_PORT"
+echo "Close it with \"make desktop-stop\" and open it again with \"make desktop-start\"."
